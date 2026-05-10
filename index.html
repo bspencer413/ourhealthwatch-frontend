@@ -83,7 +83,7 @@ const { useState, useEffect } = React;
 
 // ── CONFIG ────────────────────────────────────────────────────────────────────
 const API_BASE = 'https://ourhealthwatch-backend.onrender.com';
-const APP_VERSION = '0.1.2';
+const APP_VERSION = '0.1.3';
 const TOKEN_KEY = 'oh_token';
 const USER_KEY = 'oh_user';
 
@@ -703,11 +703,37 @@ function ItemDrawer(props) {
           ) : null}
         </div>
 
-        {/* Match result panel — populated after Recheck is tapped */}
+        {/* Match result panel — populated after Recheck is tapped (or auto on open) */}
         {matchResult ? (
           matchResult.error ? (
             <div className="mt-4 card-recall rounded-lg p-3 border border-red-500/30">
               <p className="text-red-300 text-sm">{matchResult.error}</p>
+            </div>
+          ) : matchResult.matched && matchResult.type === 'outbreak' && matchResult.outbreak ? (
+            <div className="mt-4 card-recall rounded-lg p-3 border border-emerald-500/40">
+              <p className="text-emerald-300 font-semibold text-base mb-2">⚠ Active outbreak match</p>
+              <div className="flex items-center gap-2 flex-wrap mb-2">
+                <span className={"text-white text-xs px-2 py-1 rounded font-bold " + sourceBadgeClass(matchResult.outbreak.source)}>
+                  {sourceLabel(matchResult.outbreak.source)}
+                </span>
+                {matchResult.outbreak.agent ? (
+                  <span className="text-white text-xs px-2 py-1 rounded font-bold bg-emerald-700">
+                    {matchResult.outbreak.agent}
+                  </span>
+                ) : null}
+              </div>
+              <p className="text-white text-sm font-semibold">{matchResult.outbreak.title}</p>
+              {matchResult.outbreak.summary ? (
+                <p className="text-white/80 text-sm mt-1">{matchResult.outbreak.summary}</p>
+              ) : null}
+              {matchResult.outbreak.region ? (
+                <p className="text-white/80 text-xs mt-2">
+                  <span className="text-white/60">Region: </span>{matchResult.outbreak.region}
+                </p>
+              ) : null}
+              {matchResult.outbreak.report_date ? (
+                <p className="text-white/60 text-xs mt-1">Reported: {matchResult.outbreak.report_date}</p>
+              ) : null}
             </div>
           ) : matchResult.matched && matchResult.recall ? (
             <div className="mt-4 card-recall rounded-lg p-3 border border-red-500/40">
@@ -738,6 +764,15 @@ function ItemDrawer(props) {
               ) : null}
               {matchResult.recall.recall_date ? (
                 <p className="text-white/60 text-xs mt-1">Recalled: {fmtDate(matchResult.recall.recall_date)}</p>
+              ) : null}
+            </div>
+          ) : matchResult.type === 'outbreak' ? (
+            <div className="mt-4 card-recall rounded-lg p-3">
+              <p className="text-white/90 text-sm">No active outbreaks match this item right now.</p>
+              {lastChecked ? (
+                <p className="text-white/70 text-sm mt-2 italic">
+                  Last checked {fmtRelative(lastChecked)}. We're watching.
+                </p>
               ) : null}
             </div>
           ) : (
