@@ -83,7 +83,7 @@ const { useState, useEffect } = React;
 
 // ── CONFIG ────────────────────────────────────────────────────────────────────
 const API_BASE = 'https://ourhealthwatch-backend.onrender.com';
-const APP_VERSION = '0.1.4';
+const APP_VERSION = '0.1.5';
 const TOKEN_KEY = 'oh_token';
 const USER_KEY = 'oh_user';
 
@@ -186,78 +186,89 @@ function LoginScreen(props) {
   const [err, setErr] = useState('');
 
   function submit() {
-    if (!email || !password) { setErr('Email and password required.'); return; }
-    setBusy(true);
     setErr('');
-    const path = mode === 'login' ? '/auth/login' : '/auth/register';
+    if (!email || !password) { setErr('Email and password required'); return; }
+    if (mode === 'register' && password.length < 8) {
+      setErr('Password must be at least 8 characters'); return;
+    }
+    setBusy(true);
+    if (document.activeElement) document.activeElement.blur();
+    const path = mode === 'register' ? '/auth/register' : '/auth/login';
     fetch(API_BASE + path, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email: email, password: password }),
+      body: JSON.stringify({ email: email, password: password })
     })
-      .then(function(r) { return r.json().then(function(d){ return { ok: r.ok, d: d }; }); })
+      .then(function(r) { return r.json().then(function(d) { return { ok: r.ok, d: d }; }); })
       .then(function(res) {
         setBusy(false);
-        if (!res.ok) {
-          setErr(res.d.detail || 'Auth failed.');
-          return;
-        }
+        if (!res.ok) { setErr(res.d.detail || 'Auth failed'); return; }
         try {
           localStorage.setItem(TOKEN_KEY, res.d.token);
           localStorage.setItem(USER_KEY, JSON.stringify({ user_id: res.d.user_id, email: res.d.email }));
         } catch (e) {}
         props.onAuth({ user_id: res.d.user_id, email: res.d.email });
       })
-      .catch(function() {
-        setBusy(false);
-        setErr('Network error. Try again.');
-      });
+      .catch(function() { setBusy(false); setErr('Network error'); });
   }
 
   return (
-    <div className="ohw-bg-login min-h-screen flex items-center justify-center px-4 py-8">
-      <div className="card-mw rounded-2xl p-6 w-full max-w-md">
-        <h1 className="text-white text-4xl font-bold text-center">OurHealth<span className="text-blue-300">.Watch</span></h1>
-        <p className="text-white/80 text-center text-base mt-2">
-          Drug recalls, device recalls, outbreak alerts. From FDA, CDC, and WHO.
-        </p>
-        <p className="text-white/60 text-center text-sm mt-1 italic">
-          beta · v{APP_VERSION}
-        </p>
+    <div className="ohw-bg-login min-h-screen flex flex-col items-center px-4"
+      style={{ paddingTop: '4vh', paddingBottom: '8vh' }}>
+      <div className="w-full max-w-sm flex-1 flex flex-col">
 
-        <div className="flex justify-center gap-2 mt-5">
-          <button onClick={function(){ setMode('login'); setErr(''); }}
-            className={"px-4 py-2 rounded text-base " + (mode === 'login'
-              ? "bg-blue-700 text-white"
-              : "bg-gray-700 text-white/80 border border-gray-500")}>Log in</button>
-          <button onClick={function(){ setMode('register'); setErr(''); }}
-            className={"px-4 py-2 rounded text-base " + (mode === 'register'
-              ? "bg-blue-700 text-white"
-              : "bg-gray-700 text-white/80 border border-gray-500")}>Register</button>
+        {/* Big two-line app-name header — centered vertically in top half */}
+        <div className="flex-1 flex items-center justify-center">
+          <h1 className="text-white font-black text-center"
+            style={{
+              fontSize: '5rem',
+              letterSpacing: '0.04em',
+              lineHeight: 0.95,
+              textTransform: 'uppercase',
+              textShadow: '0 4px 16px rgba(0,0,0,0.9)',
+              WebkitTextStroke: '1px #fff',
+              margin: 0
+            }}>
+            Our<br/>Health<br/>Watch
+          </h1>
         </div>
 
-        <div className="mt-5">
-          <label className="text-white/80 text-sm">Email</label>
-          <input type="email" value={email} onChange={function(e){ setEmail(e.target.value); }}
-            className="w-full mt-1 px-3 py-2 rounded bg-gray-900 text-white border border-gray-600"
-            autoCapitalize="none" autoCorrect="off" />
+        <div className="card-mw rounded-2xl p-5 space-y-3">
+          <input type="email" placeholder="Email address" value={email}
+            onChange={function(e){ setEmail(e.target.value); }}
+            onFocus={function(e){
+              setTimeout(function(){
+                if (e.target && e.target.scrollIntoView) e.target.scrollIntoView({ block: 'center', behavior: 'smooth' });
+              }, 300);
+            }}
+            autoComplete="email"
+            className="w-full px-4 py-3 text-xl rounded-xl bg-white/15 border border-white/30 text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-blue-400" />
+          <input type="password" placeholder="Password" value={password}
+            onChange={function(e){ setPassword(e.target.value); }}
+            onFocus={function(e){
+              setTimeout(function(){
+                if (e.target && e.target.scrollIntoView) e.target.scrollIntoView({ block: 'center', behavior: 'smooth' });
+              }, 300);
+            }}
+            onKeyDown={function(e){ if (e.key === 'Enter') { setMode('login'); submit(); } }}
+            autoComplete={mode === 'register' ? 'new-password' : 'current-password'}
+            className="w-full px-4 py-3 text-xl rounded-xl bg-white/15 border border-white/30 text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-blue-400" />
+
+          {err ? <p className="text-red-300 text-xl text-center">{err}</p> : null}
+
+          <div className="grid grid-cols-2 gap-3">
+            <button onClick={function(){ setMode('login'); setErr(''); submit(); }} disabled={busy}
+              className="py-4 rounded-xl bg-white text-gray-900 text-2xl font-bold disabled:opacity-50">
+              {busy && mode === 'login' ? '...' : 'Sign In'}
+            </button>
+            <button onClick={function(){ setMode('register'); setErr(''); submit(); }} disabled={busy}
+              className="py-4 rounded-xl bg-white/15 text-white text-2xl font-bold border border-white/40 disabled:opacity-50">
+              {busy && mode === 'register' ? '...' : 'Register'}
+            </button>
+          </div>
+
+          <p className="text-white/60 text-base text-center pt-1">You'll stay signed in automatically</p>
         </div>
-        <div className="mt-3">
-          <label className="text-white/80 text-sm">Password</label>
-          <input type="password" value={password} onChange={function(e){ setPassword(e.target.value); }}
-            className="w-full mt-1 px-3 py-2 rounded bg-gray-900 text-white border border-gray-600" />
-        </div>
-
-        {err ? <p className="text-red-400 text-sm mt-3 text-center">{err}</p> : null}
-
-        <button onClick={submit} disabled={busy}
-          className="w-full mt-5 px-4 py-3 rounded bg-blue-700 hover:bg-blue-600 text-white text-lg font-semibold disabled:opacity-50">
-          {busy ? '…' : (mode === 'login' ? 'Log in' : 'Create account')}
-        </button>
-
-        <p className="text-white/50 text-xs text-center mt-4 italic">
-          Watching what watches you.
-        </p>
       </div>
     </div>
   );
