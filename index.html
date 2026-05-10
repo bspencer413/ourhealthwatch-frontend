@@ -83,7 +83,7 @@ const { useState, useEffect } = React;
 
 // ── CONFIG ────────────────────────────────────────────────────────────────────
 const API_BASE = 'https://ourhealthwatch-backend.onrender.com';
-const APP_VERSION = '0.1.3';
+const APP_VERSION = '0.1.4';
 const TOKEN_KEY = 'oh_token';
 const USER_KEY = 'oh_user';
 
@@ -631,13 +631,13 @@ function BrowsePage() {
 // ── ITEM DRAWER (watchlist item detail) ───────────────────────────────────────
 function ItemDrawer(props) {
   const item = props.item;
-  const [busy, setBusy] = useState(false);
+  const [busy, setBusy] = useState(true);
   const [matchResult, setMatchResult] = useState(null);
   const [lastChecked, setLastChecked] = useState(item.last_checked || null);
+  const [saved, setSaved] = useState(false);
 
   function refresh() {
     setBusy(true);
-    setMatchResult(null);
     fetch(API_BASE + '/watchlist/' + item.id + '/refresh', { headers: authHeaders() })
       .then(function(r) { return r.json().then(function(d){ return { ok: r.ok, d: d }; }); })
       .then(function(res) {
@@ -659,8 +659,33 @@ function ItemDrawer(props) {
   // Auto-fire the recheck the moment the drawer opens — "tap = instant search result"
   useEffect(function(){ refresh(); }, []);
 
+  // Copy this item to the opposite list (Watchlist <-> Saved). Original stays put.
+  function copyTo(monitoring) {
+    setBusy(true);
+    const body = {
+      kind: item.kind || 'product',
+      brand: item.brand || null,
+      product_name: item.product_name || null,
+      upc: item.upc || null,
+      keyword: item.keyword || null,
+      category: item.category || null,
+      monitoring: monitoring,
+    };
+    fetch(API_BASE + '/watchlist', {
+      method: 'POST',
+      headers: jsonHeaders(),
+      body: JSON.stringify(body),
+    })
+      .then(function() {
+        setBusy(false);
+        setSaved(true);
+        if (props.onChanged) props.onChanged();
+      })
+      .catch(function() { setBusy(false); });
+  }
+
   function remove() {
-    if (!confirm('Remove from Watchlist?')) return;
+    if (!confirm('Remove from list?')) return;
     setBusy(true);
     fetch(API_BASE + '/watchlist/' + item.id, {
       method: 'DELETE',
@@ -674,132 +699,87 @@ function ItemDrawer(props) {
       .catch(function() { setBusy(false); });
   }
 
+  const isOutbreakItem = (item.kind === 'outbreak') ||
+    (item.category && (item.category.indexOf('cdc_') === 0 || item.category.indexOf('who_') === 0));
+  const itemOnWatchlist = item.monitoring;
+
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center drawer-backdrop"
       onClick={props.onClose}>
-      <div className="card-mw rounded-t-2xl w-full max-w-2xl p-5 max-h-[85vh] overflow-y-auto scrollbar-thin"
+      <div className="card-mw rounded-t-2xl w-full max-w-lg p-5 max-h-[85vh] overflow-y-auto scrollbar-thin"
         onClick={function(e){ e.stopPropagation(); }}>
-        <div className="flex justify-between items-start mb-3">
+        <div className="flex items-start justify-between mb-2">
           <div className="flex-1">
-            <h2 className="text-white text-2xl font-bold">{item.brand || item.keyword || 'Item'}</h2>
-            {item.product_name ? (
-              <p className="text-white/80 text-base">{item.product_name}</p>
-            ) : null}
+            <h3 className="text-white text-2xl font-bold">{item.brand || item.keyword || 'Item'}</h3>
+            {item.product_name ? <p className="text-white text-base">{item.product_name}</p> : null}
+            {item.upc ? <p className="text-white text-sm mt-1">UPC: {item.upc}</p> : null}
             {item.category ? (
               <span className={"inline-block text-white text-xs px-2 py-1 rounded font-bold mt-2 " + sourceBadgeClass(item.category)}>
                 {sourceLabel(item.category)}
               </span>
             ) : null}
           </div>
-          <button onClick={props.onClose}
-            className="text-white text-2xl px-2">×</button>
+          <button onClick={props.onClose} className="text-white hover:text-gray-300 text-3xl leading-none px-2">×</button>
         </div>
 
-        <div className="text-white/80 text-sm space-y-1">
-          {item.kind ? <p><span className="text-white/60">Kind:</span> {item.kind}</p> : null}
-          {item.upc ? <p><span className="text-white/60">UPC:</span> {item.upc}</p> : null}
-          {lastChecked ? (
-            <p><span className="text-white/60">Last checked:</span> {fmtRelative(lastChecked)}</p>
-          ) : null}
-        </div>
+        <p className="text-white text-sm mb-4">
+          {busy ? 'Rechecking…' : (lastChecked ? 'Last checked ' + fmtRelative(lastChecked) : '')}
+        </p>
 
-        {/* Match result panel — populated after Recheck is tapped (or auto on open) */}
-        {matchResult ? (
-          matchResult.error ? (
-            <div className="mt-4 card-recall rounded-lg p-3 border border-red-500/30">
-              <p className="text-red-300 text-sm">{matchResult.error}</p>
-            </div>
-          ) : matchResult.matched && matchResult.type === 'outbreak' && matchResult.outbreak ? (
-            <div className="mt-4 card-recall rounded-lg p-3 border border-emerald-500/40">
-              <p className="text-emerald-300 font-semibold text-base mb-2">⚠ Active outbreak match</p>
-              <div className="flex items-center gap-2 flex-wrap mb-2">
-                <span className={"text-white text-xs px-2 py-1 rounded font-bold " + sourceBadgeClass(matchResult.outbreak.source)}>
-                  {sourceLabel(matchResult.outbreak.source)}
-                </span>
-                {matchResult.outbreak.agent ? (
-                  <span className="text-white text-xs px-2 py-1 rounded font-bold bg-emerald-700">
-                    {matchResult.outbreak.agent}
-                  </span>
-                ) : null}
-              </div>
-              <p className="text-white text-sm font-semibold">{matchResult.outbreak.title}</p>
-              {matchResult.outbreak.summary ? (
-                <p className="text-white/80 text-sm mt-1">{matchResult.outbreak.summary}</p>
-              ) : null}
-              {matchResult.outbreak.region ? (
-                <p className="text-white/80 text-xs mt-2">
-                  <span className="text-white/60">Region: </span>{matchResult.outbreak.region}
-                </p>
-              ) : null}
-              {matchResult.outbreak.report_date ? (
-                <p className="text-white/60 text-xs mt-1">Reported: {matchResult.outbreak.report_date}</p>
-              ) : null}
-            </div>
-          ) : matchResult.matched && matchResult.recall ? (
-            <div className="mt-4 card-recall rounded-lg p-3 border border-red-500/40">
-              <p className="text-red-300 font-semibold text-base mb-2">⚠ Active recall match</p>
-              <div className="flex items-center gap-2 flex-wrap mb-2">
-                <span className={"text-white text-xs px-2 py-1 rounded font-bold " + sourceBadgeClass(matchResult.recall.source)}>
-                  {sourceLabel(matchResult.recall.source)}
-                </span>
-                {matchResult.recall.classification ? (
-                  <span className={"text-white text-xs px-2 py-1 rounded font-bold " + classBadge(matchResult.recall.classification)}>
-                    Class {matchResult.recall.classification}
-                  </span>
-                ) : null}
-                {matchResult.recall.status ? (
-                  <span className="text-white/80 text-xs px-2 py-1 rounded border border-white/30">
-                    {matchResult.recall.status}
-                  </span>
-                ) : null}
-              </div>
-              <p className="text-white text-sm font-semibold">{matchResult.recall.brand}</p>
-              {matchResult.recall.product_description ? (
-                <p className="text-white/80 text-sm mt-1">{matchResult.recall.product_description}</p>
-              ) : null}
-              {matchResult.recall.reason ? (
-                <p className="text-white/80 text-xs mt-2">
-                  <span className="text-white/60">Reason: </span>{matchResult.recall.reason}
-                </p>
-              ) : null}
-              {matchResult.recall.recall_date ? (
-                <p className="text-white/60 text-xs mt-1">Recalled: {fmtDate(matchResult.recall.recall_date)}</p>
-              ) : null}
-            </div>
-          ) : matchResult.type === 'outbreak' ? (
-            <div className="mt-4 card-recall rounded-lg p-3">
-              <p className="text-white/90 text-sm">No active outbreaks match this item right now.</p>
-              {lastChecked ? (
-                <p className="text-white/70 text-sm mt-2 italic">
-                  Last checked {fmtRelative(lastChecked)}. We're watching.
-                </p>
-              ) : null}
-            </div>
-          ) : (
-            <div className="mt-4 card-recall rounded-lg p-3">
-              <p className="text-white/90 text-sm">No active recalls match this item right now.</p>
-              {lastChecked ? (
-                <p className="text-white/70 text-sm mt-2 italic">
-                  Last checked {fmtRelative(lastChecked)}. We're watching.
-                </p>
-              ) : null}
-              <p className="text-white/50 text-xs mt-2 italic">
-                Some brand-name searches miss generic-only recalls — we're improving this.
-              </p>
-            </div>
-          )
-        ) : item.has_alert ? (
-          <p className="text-red-300 font-semibold mt-3">⚠ Active alert on file — tap Recheck for details</p>
+        {/* Match result panel — fires automatically on open. Re-uses the same RecallCard / OutbreakCard from the firehose so the look matches search results exactly. */}
+        {busy ? (
+          <p className="text-white text-base py-4 text-center">Looking up latest information…</p>
+        ) : matchResult && matchResult.error ? (
+          <div className="card-recall rounded-lg p-3 border border-red-500/30">
+            <p className="text-red-300 text-sm">{matchResult.error}</p>
+          </div>
+        ) : matchResult && matchResult.matched && matchResult.type === 'outbreak' && matchResult.outbreak ? (
+          <div>
+            <p className="text-emerald-300 text-lg font-bold mb-2">⚠ Active outbreak match</p>
+            <OutbreakCard outbreak={matchResult.outbreak} />
+          </div>
+        ) : matchResult && matchResult.matched && matchResult.recall ? (
+          <div>
+            <p className="text-red-300 text-lg font-bold mb-2">⚠ Recall match found</p>
+            <RecallCard recall={matchResult.recall} />
+          </div>
+        ) : matchResult && matchResult.type === 'outbreak' ? (
+          <div className="card-recall rounded-lg p-4 mb-3 text-center">
+            <p className="text-emerald-300 text-xl font-bold">No active outbreaks</p>
+            <p className="text-white text-base mt-1">No matching outbreak in current CDC/WHO feeds.</p>
+          </div>
+        ) : matchResult ? (
+          <div className="card-recall rounded-lg p-4 mb-3 text-center">
+            <p className="text-emerald-300 text-xl font-bold">No active recalls</p>
+            <p className="text-white text-base mt-1">No FDA recall currently matches this item.</p>
+            <p className="text-white/50 text-xs mt-2 italic">
+              Some brand-name searches miss generic-only recalls — we're improving this.
+            </p>
+          </div>
         ) : null}
 
-        <div className="flex gap-2 mt-5">
-          <button onClick={refresh} disabled={busy}
-            className="flex-1 px-3 py-2 rounded bg-blue-700 hover:bg-blue-600 text-white text-sm font-semibold disabled:opacity-50">
-            {busy ? '…' : 'Recheck'}
-          </button>
+        <div className="flex flex-wrap gap-2 mt-4">
+          {itemOnWatchlist && !saved ? (
+            <button onClick={function(){ copyTo(false); }} disabled={busy}
+              className="flex-1 py-4 text-xl rounded-xl bg-white/15 text-white font-bold border border-white/30 hover:bg-white/20 disabled:opacity-50">
+              {isOutbreakItem ? 'Save to Saved Outbreaks' : 'Save to Saved Recalls'}
+            </button>
+          ) : null}
+          {!itemOnWatchlist && !saved ? (
+            <button onClick={function(){ copyTo(true); }} disabled={busy}
+              className="flex-1 py-4 text-xl rounded-xl bg-blue-700 text-white font-bold border border-blue-500 hover:bg-blue-600 disabled:opacity-50">
+              Move to Watchlist
+            </button>
+          ) : null}
+          {saved ? (
+            <button disabled
+              className="flex-1 py-4 text-xl rounded-xl bg-green-700 text-white font-bold border border-green-500">
+              ✓ Saved
+            </button>
+          ) : null}
           <button onClick={remove} disabled={busy}
-            className="flex-1 px-3 py-2 rounded bg-red-800 hover:bg-red-700 text-white text-sm font-semibold disabled:opacity-50">
-            Remove
+            className="flex-1 py-4 text-xl rounded-xl bg-red-900/60 text-white font-bold border border-red-600 hover:bg-red-800/70 disabled:opacity-50">
+            🗑 Remove
           </button>
         </div>
       </div>
@@ -998,38 +978,79 @@ function InfoPage(props) {
 
 // ── BOTTOM NAV ────────────────────────────────────────────────────────────────
 function NavIcon(props) {
-  const isActive = props.active;
-  return (
-    <button onClick={props.onClick}
-      className={"flex-1 flex flex-col items-center justify-center py-2 " +
-        (isActive ? "text-white" : "text-white/50")}>
-      <span className="text-2xl">{props.icon}</span>
-      <span className="text-xs mt-0.5">{props.label}</span>
-      {props.badge && props.badge > 0 ? (
-        <span className="absolute -mt-7 ml-6 bg-red-600 text-white text-xs rounded-full px-1.5 py-0.5 font-bold">
-          {props.badge}
-        </span>
-      ) : null}
-    </button>
+  // Inline SVG per tab id, matching canonical MW vocabulary
+  const id = props.id;
+  if (id === 'browse') return (
+    <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+        d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+    </svg>
   );
+  if (id === 'watchlist') return (
+    <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+        d="M15 12a3 3 0 11-6 0 3 3 0 016 0z M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+    </svg>
+  );
+  if (id === 'saved') return (
+    <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+        d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
+    </svg>
+  );
+  if (id === 'info') return (
+    <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+        d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+    </svg>
+  );
+  if (id === 'alerts') return (
+    <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+        d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+    </svg>
+  );
+  return null;
 }
 
 function BottomNav(props) {
+  const tabs = [
+    { id: 'browse',    label: 'Browse'    },
+    { id: 'watchlist', label: 'Watchlist' },
+    { id: 'saved',     label: 'Saved'     },
+    { id: 'info',      label: 'Info'      },
+    { id: 'alerts',    label: 'Alerts'    }
+  ];
   return (
-    <nav className="fixed bottom-0 left-0 right-0 bg-gray-900 border-t border-gray-700 flex"
-      style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
-      <NavIcon icon="⌕" label="Browse" active={props.page === 'browse'}
-        onClick={function(){ props.onChange('browse'); }} />
-      <NavIcon icon="◎" label="Watchlist" active={props.page === 'watchlist'}
-        onClick={function(){ props.onChange('watchlist'); }} />
-      <NavIcon icon="✦" label="Saved" active={props.page === 'saved'}
-        onClick={function(){ props.onChange('saved'); }} />
-      <NavIcon icon="ⓘ" label="Info" active={props.page === 'info'}
-        onClick={function(){ props.onChange('info'); }} />
-      <NavIcon icon="!" label="Alerts" active={props.page === 'alerts'}
-        onClick={function(){ props.onChange('alerts'); }}
-        badge={props.alertCount} />
-    </nav>
+    <div style={{
+      position: 'fixed', bottom: 0, left: 0, right: 0,
+      backgroundColor: 'rgba(0,0,0,0.85)',
+      backdropFilter: 'blur(8px)',
+      borderTop: '1px solid rgba(255,255,255,0.15)',
+      padding: '0.5rem 0.75rem',
+      paddingBottom: 'max(0.5rem, env(safe-area-inset-bottom))',
+      zIndex: 40
+    }}>
+      <div className="flex justify-around max-w-2xl mx-auto">
+        {tabs.map(function(t) {
+          const active = props.page === t.id;
+          const isAlerts = t.id === 'alerts';
+          const cls = "flex flex-col items-center gap-0.5 px-1 py-1 relative " + (active ? "text-white" : "text-gray-400");
+          return (
+            <button key={t.id} className={cls}
+              onClick={function(){ props.onChange(t.id); }}>
+              <NavIcon id={t.id} />
+              {isAlerts && props.alertCount > 0 ? (
+                <span className="absolute top-0 right-0 bg-red-600 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
+                  {props.alertCount > 9 ? '9+' : props.alertCount}
+                </span>
+              ) : null}
+              <span className="text-xl font-medium">{t.label}</span>
+            </button>
+          );
+        })}
+      </div>
+    </div>
   );
 }
 
