@@ -83,7 +83,7 @@ const { useState, useEffect } = React;
 
 // ── CONFIG ────────────────────────────────────────────────────────────────────
 const API_BASE = 'https://ourhealthwatch-backend.onrender.com';
-const APP_VERSION = '0.1.0';
+const APP_VERSION = '0.1.2';
 const TOKEN_KEY = 'oh_token';
 const USER_KEY = 'oh_user';
 
@@ -399,7 +399,7 @@ function LatestRecallsView(props) {
 
   function load() {
     setBusy(true);
-    let url = API_BASE + '/recalls/recent?limit=50';
+    let url = API_BASE + '/recalls/recent?limit=30';
     if (source) url = url + '&source=' + source;
     fetch(url)
       .then(function(r) { return r.json(); })
@@ -495,7 +495,7 @@ function LatestOutbreaksView(props) {
 
   function load() {
     setBusy(true);
-    let url = API_BASE + '/outbreaks/recent?limit=50';
+    let url = API_BASE + '/outbreaks/recent?limit=30';
     if (source) url = url + '&source=' + source;
     fetch(url)
       .then(function(r) { return r.json(); })
@@ -632,19 +632,32 @@ function BrowsePage() {
 function ItemDrawer(props) {
   const item = props.item;
   const [busy, setBusy] = useState(false);
-  const [latest, setLatest] = useState(null);
+  const [matchResult, setMatchResult] = useState(null);
+  const [lastChecked, setLastChecked] = useState(item.last_checked || null);
 
   function refresh() {
     setBusy(true);
-    fetch(API_BASE + '/watchlist', { headers: authHeaders() })
-      .then(function(r) { return r.json(); })
-      .then(function(d) {
-        const found = (d.results || []).find(function(x){ return x.id === item.id; });
-        if (found) setLatest(found);
+    setMatchResult(null);
+    fetch(API_BASE + '/watchlist/' + item.id + '/refresh', { headers: authHeaders() })
+      .then(function(r) { return r.json().then(function(d){ return { ok: r.ok, d: d }; }); })
+      .then(function(res) {
         setBusy(false);
+        if (res.ok) {
+          setMatchResult(res.d);
+          setLastChecked(res.d.last_checked || null);
+          if (props.onChanged) props.onChanged();
+        } else {
+          setMatchResult({ matched: false, error: res.d.detail || 'Refresh failed' });
+        }
       })
-      .catch(function() { setBusy(false); });
+      .catch(function() {
+        setBusy(false);
+        setMatchResult({ matched: false, error: 'Network error' });
+      });
   }
+
+  // Auto-fire the recheck the moment the drawer opens — "tap = instant search result"
+  useEffect(function(){ refresh(); }, []);
 
   function remove() {
     if (!confirm('Remove from Watchlist?')) return;
@@ -661,8 +674,6 @@ function ItemDrawer(props) {
       .catch(function() { setBusy(false); });
   }
 
-  const display = latest || item;
-
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center drawer-backdrop"
       onClick={props.onClose}>
@@ -670,13 +681,13 @@ function ItemDrawer(props) {
         onClick={function(e){ e.stopPropagation(); }}>
         <div className="flex justify-between items-start mb-3">
           <div className="flex-1">
-            <h2 className="text-white text-2xl font-bold">{display.brand || display.keyword || 'Item'}</h2>
-            {display.product_name ? (
-              <p className="text-white/80 text-base">{display.product_name}</p>
+            <h2 className="text-white text-2xl font-bold">{item.brand || item.keyword || 'Item'}</h2>
+            {item.product_name ? (
+              <p className="text-white/80 text-base">{item.product_name}</p>
             ) : null}
-            {display.category ? (
-              <span className={"inline-block text-white text-xs px-2 py-1 rounded font-bold mt-2 " + sourceBadgeClass(display.category)}>
-                {sourceLabel(display.category)}
+            {item.category ? (
+              <span className={"inline-block text-white text-xs px-2 py-1 rounded font-bold mt-2 " + sourceBadgeClass(item.category)}>
+                {sourceLabel(item.category)}
               </span>
             ) : null}
           </div>
@@ -685,15 +696,66 @@ function ItemDrawer(props) {
         </div>
 
         <div className="text-white/80 text-sm space-y-1">
-          {display.kind ? <p><span className="text-white/60">Kind:</span> {display.kind}</p> : null}
-          {display.upc ? <p><span className="text-white/60">UPC:</span> {display.upc}</p> : null}
-          {display.last_checked ? (
-            <p><span className="text-white/60">Last checked:</span> {fmtRelative(display.last_checked)}</p>
-          ) : null}
-          {display.has_alert ? (
-            <p className="text-red-300 font-semibold">⚠ Active alert on file</p>
+          {item.kind ? <p><span className="text-white/60">Kind:</span> {item.kind}</p> : null}
+          {item.upc ? <p><span className="text-white/60">UPC:</span> {item.upc}</p> : null}
+          {lastChecked ? (
+            <p><span className="text-white/60">Last checked:</span> {fmtRelative(lastChecked)}</p>
           ) : null}
         </div>
+
+        {/* Match result panel — populated after Recheck is tapped */}
+        {matchResult ? (
+          matchResult.error ? (
+            <div className="mt-4 card-recall rounded-lg p-3 border border-red-500/30">
+              <p className="text-red-300 text-sm">{matchResult.error}</p>
+            </div>
+          ) : matchResult.matched && matchResult.recall ? (
+            <div className="mt-4 card-recall rounded-lg p-3 border border-red-500/40">
+              <p className="text-red-300 font-semibold text-base mb-2">⚠ Active recall match</p>
+              <div className="flex items-center gap-2 flex-wrap mb-2">
+                <span className={"text-white text-xs px-2 py-1 rounded font-bold " + sourceBadgeClass(matchResult.recall.source)}>
+                  {sourceLabel(matchResult.recall.source)}
+                </span>
+                {matchResult.recall.classification ? (
+                  <span className={"text-white text-xs px-2 py-1 rounded font-bold " + classBadge(matchResult.recall.classification)}>
+                    Class {matchResult.recall.classification}
+                  </span>
+                ) : null}
+                {matchResult.recall.status ? (
+                  <span className="text-white/80 text-xs px-2 py-1 rounded border border-white/30">
+                    {matchResult.recall.status}
+                  </span>
+                ) : null}
+              </div>
+              <p className="text-white text-sm font-semibold">{matchResult.recall.brand}</p>
+              {matchResult.recall.product_description ? (
+                <p className="text-white/80 text-sm mt-1">{matchResult.recall.product_description}</p>
+              ) : null}
+              {matchResult.recall.reason ? (
+                <p className="text-white/80 text-xs mt-2">
+                  <span className="text-white/60">Reason: </span>{matchResult.recall.reason}
+                </p>
+              ) : null}
+              {matchResult.recall.recall_date ? (
+                <p className="text-white/60 text-xs mt-1">Recalled: {fmtDate(matchResult.recall.recall_date)}</p>
+              ) : null}
+            </div>
+          ) : (
+            <div className="mt-4 card-recall rounded-lg p-3">
+              <p className="text-white/90 text-sm">No active recalls match this item right now.</p>
+              {lastChecked ? (
+                <p className="text-white/70 text-sm mt-2 italic">
+                  Last checked {fmtRelative(lastChecked)}. We're watching.
+                </p>
+              ) : null}
+              <p className="text-white/50 text-xs mt-2 italic">
+                Some brand-name searches miss generic-only recalls — we're improving this.
+              </p>
+            </div>
+          )
+        ) : item.has_alert ? (
+          <p className="text-red-300 font-semibold mt-3">⚠ Active alert on file — tap Recheck for details</p>
+        ) : null}
 
         <div className="flex gap-2 mt-5">
           <button onClick={refresh} disabled={busy}
