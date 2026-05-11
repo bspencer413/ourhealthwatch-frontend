@@ -16,10 +16,57 @@
 <meta property="og:description" content="Drug recalls, device recalls, and outbreak alerts for places you care about.">
 <meta property="og:url" content="https://ourhealth.watch">
 <meta property="og:type" content="website">
+<!-- ── DEBUG v0.1.7-debug2: plain JS, runs before Babel/React so we always see something ── -->
+<script>
+  (function(){
+    // Visible version marker — if you see this banner, the new file IS deployed.
+    function showBanner(text, color) {
+      var b = document.getElementById('debug-banner') || document.createElement('div');
+      b.id = 'debug-banner';
+      b.style.cssText = 'position:fixed;top:0;left:0;right:0;background:'+color+';color:#000;padding:8px 12px;font-family:monospace;font-size:13px;z-index:99999;text-align:center;font-weight:bold;';
+      b.textContent = text;
+      if (!b.parentNode && document.body) document.body.appendChild(b);
+      else if (!b.parentNode) document.addEventListener('DOMContentLoaded', function(){ document.body.appendChild(b); });
+    }
+    showBanner('debug2 loaded · waiting for React...', '#facc15');
+    window.__ohwBannerSet = showBanner;
+
+```
+window.addEventListener('error', function(e){
+  var root = document.getElementById('root');
+  if (root) {
+    root.innerHTML = '<div style="padding:60px 20px 20px;color:#fff;font-family:monospace;font-size:14px;background:#7f1d1d;min-height:100vh;white-space:pre-wrap;word-break:break-word;">' +
+      '<strong>JS ERROR</strong>\n\n' +
+      String(e.message || '?').replace(/</g,'&lt;') +
+      '\n\nFile: ' + (e.filename || '?') +
+      '\nLine: ' + (e.lineno || '?') + '  Col: ' + (e.colno || '?') +
+      (e.error && e.error.stack ? '\n\nStack:\n' + String(e.error.stack).replace(/</g,'&lt;') : '') +
+      '</div>';
+  }
+  showBanner('debug2 caught JS error', '#dc2626');
+});
+window.addEventListener('unhandledrejection', function(e){
+  var root = document.getElementById('root');
+  if (root && root.children.length <= 1) {
+    root.innerHTML = '<div style="padding:60px 20px 20px;color:#fff;font-family:monospace;font-size:14px;background:#7f1d1d;min-height:100vh;white-space:pre-wrap;">' +
+      '<strong>PROMISE REJECTED</strong>\n\n' +
+      String((e.reason && e.reason.stack) || e.reason || 'Unknown').replace(/</g,'&lt;') +
+      '</div>';
+  }
+});
+```
+
+})();
+</script>
+
 <script src="https://cdn.tailwindcss.com"></script>
+
 <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+
 <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+
 <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
 <style>
   * { -webkit-tap-highlight-color: transparent; font-family: Georgia, 'Times New Roman', serif; box-sizing: border-box; }
   html, body { height: 100%; overflow-x: hidden; margin: 0; padding: 0; background: #0a1929; }
@@ -76,6 +123,7 @@
   .drawer-backdrop { background: rgba(0,0,0,0.6); }
   input, button, select, textarea { font-family: inherit; }
 </style>
+
 </head>
 <body>
 <div id="root"></div>
@@ -1233,12 +1281,14 @@ return (
 
 try {
 ReactDOM.render(<App />, document.getElementById(‘root’));
+// If we reach here, React mounted — flip the banner green.
+if (window.__ohwBannerSet) window.__ohwBannerSet(‘debug2 · React mounted OK’, ‘#22c55e’);
 } catch (e) {
 const root = document.getElementById(‘root’);
 if (root) {
 root.innerHTML =
-‘<div style="padding:20px;color:#fff;font-family:monospace;font-size:14px;background:#7f1d1d;min-height:100vh;white-space:pre-wrap;">’ +
-‘<strong>Mount error:</strong>\n\n’ +
+‘<div style="padding:60px 20px 20px;color:#fff;font-family:monospace;font-size:14px;background:#7f1d1d;min-height:100vh;white-space:pre-wrap;">’ +
+‘<strong>MOUNT ERROR</strong>\n\n’ +
 String((e && e.stack) || e).replace(/</g,’<’) +
 ‘</div>’;
 }
