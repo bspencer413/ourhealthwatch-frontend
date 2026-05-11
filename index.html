@@ -1,4 +1,5 @@
 <!DOCTYPE html>
+
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -8,11 +9,11 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="apple-mobile-web-app-title" content="OurHealth.Watch">
 <title>OurHealth.Watch</title>
-<meta name="description" content="OurHealth.Watch — drug recalls, device recalls, and outbreak alerts from FDA, CDC, and WHO. Watch what your government is watching.">
+<meta name="description" content="OurHealth.Watch — drug recalls, device recalls, and outbreak alerts for places you care about. Watch what your government is watching.">
 <meta name="robots" content="index, follow">
 <link rel="canonical" href="https://ourhealth.watch">
 <meta property="og:title" content="OurHealth.Watch — Watching what watches you.">
-<meta property="og:description" content="Drug recalls, device recalls, and outbreak alerts from FDA, CDC, and WHO.">
+<meta property="og:description" content="Drug recalls, device recalls, and outbreak alerts for places you care about.">
 <meta property="og:url" content="https://ourhealth.watch">
 <meta property="og:type" content="website">
 <script src="https://cdn.tailwindcss.com"></script>
@@ -82,1069 +83,1129 @@
 const { useState, useEffect } = React;
 
 // ── CONFIG ────────────────────────────────────────────────────────────────────
-const API_BASE = 'https://ourhealthwatch-backend.onrender.com';
-const APP_VERSION = '0.1.6';
-const TOKEN_KEY = 'oh_token';
-const USER_KEY = 'oh_user';
+const API_BASE = ‘https://ourhealthwatch-backend.onrender.com’;
+const APP_VERSION = ‘0.1.7’;
+const TOKEN_KEY = ‘oh_token’;
+const USER_KEY = ‘oh_user’;
+
+// v0.1.7: same 12-region taxonomy as Cruise Ship Watch / EarthWatch.
+const OH_REGIONS = [
+‘Africa’, ‘Alaska’, ‘Arctic’, ‘Asia’, ‘Caribbean’, ‘Central America’,
+‘Mediterranean’, ‘Middle East’, ‘North America’, ‘Northern Europe’,
+‘Oceania’, ‘South America’
+];
 
 // ── HELPERS ───────────────────────────────────────────────────────────────────
 function getToken() {
-  try { return localStorage.getItem(TOKEN_KEY); } catch (e) { return null; }
+try { return localStorage.getItem(TOKEN_KEY); } catch (e) { return null; }
 }
 function getStoredUser() {
-  try {
-    const raw = localStorage.getItem(USER_KEY);
-    return raw ? JSON.parse(raw) : null;
-  } catch (e) { return null; }
+try {
+const raw = localStorage.getItem(USER_KEY);
+return raw ? JSON.parse(raw) : null;
+} catch (e) { return null; }
 }
 function authHeaders() {
-  const t = getToken();
-  return t ? { 'Authorization': 'Bearer ' + t } : {};
+const t = getToken();
+return t ? { ‘Authorization’: ‘Bearer ’ + t } : {};
 }
 function jsonHeaders() {
-  return Object.assign({ 'Content-Type': 'application/json' }, authHeaders());
+return Object.assign({ ‘Content-Type’: ‘application/json’ }, authHeaders());
 }
 function fmtDate(s) {
-  if (!s) return '';
-  // openFDA returns YYYYMMDD strings; NORS returns YYYY-MM
-  if (/^\d{8}$/.test(s)) {
-    return s.substring(0,4) + '-' + s.substring(4,6) + '-' + s.substring(6,8);
-  }
-  return s;
+if (!s) return ‘’;
+// openFDA returns YYYYMMDD strings; NORS returns YYYY-MM
+if (/^\d{8}$/.test(s)) {
+return s.substring(0,4) + ‘-’ + s.substring(4,6) + ‘-’ + s.substring(6,8);
+}
+return s;
 }
 function fmtRelative(iso) {
-  if (!iso) return '';
-  try {
-    const then = new Date(iso);
-    const diffMin = Math.round((Date.now() - then.getTime()) / 60000);
-    if (diffMin < 1) return 'just now';
-    if (diffMin < 60) return diffMin + ' min ago';
-    const hrs = Math.round(diffMin / 60);
-    if (hrs < 24) return hrs + ' hr ago';
-    const days = Math.round(hrs / 24);
-    return days + ' day' + (days === 1 ? '' : 's') + ' ago';
-  } catch (e) { return ''; }
+if (!iso) return ‘’;
+try {
+const then = new Date(iso);
+const diffMin = Math.round((Date.now() - then.getTime()) / 60000);
+if (diffMin < 1) return ‘just now’;
+if (diffMin < 60) return diffMin + ’ min ago’;
+const hrs = Math.round(diffMin / 60);
+if (hrs < 24) return hrs + ’ hr ago’;
+const days = Math.round(hrs / 24);
+return days + ’ day’ + (days === 1 ? ‘’ : ‘s’) + ’ ago’;
+} catch (e) { return ‘’; }
 }
 function classBadge(cls) {
-  if (cls === 'I' || cls === 'II' || cls === 'III') return 'class-' + cls;
-  return 'class-III';
+if (cls === ‘I’ || cls === ‘II’ || cls === ‘III’) return ‘class-’ + cls;
+return ‘class-III’;
 }
 function sourceLabel(src) {
-  if (src === 'fda_drug') return 'Drug';
-  if (src === 'fda_device') return 'Device';
-  if (src === 'cdc_nors') return 'NORS';
-  if (src === 'who_don') return 'WHO';
-  if (src === 'cdc_vsp') return 'VSP';
-  return src || '';
+if (src === ‘fda_drug’) return ‘Drug’;
+if (src === ‘fda_device’) return ‘Device’;
+if (src === ‘cdc_nors’) return ‘NORS’;
+if (src === ‘who_don’) return ‘WHO’;
+if (src === ‘cdc_vsp’) return ‘VSP’;
+return src || ‘’;
 }
 function sourceBadgeClass(src) {
-  if (src === 'fda_drug') return 'source-drug';
-  if (src === 'fda_device') return 'source-device';
-  if (src === 'cdc_nors' || src === 'who_don' || src === 'cdc_vsp') return 'source-outbreak';
-  return 'class-III';
+if (src === ‘fda_drug’) return ‘source-drug’;
+if (src === ‘fda_device’) return ‘source-device’;
+if (src === ‘cdc_nors’ || src === ‘who_don’ || src === ‘cdc_vsp’) return ‘source-outbreak’;
+return ‘class-III’;
 }
 
 // ── PRIMITIVES: HEADERS / CARDS ───────────────────────────────────────────────
 function CardPageHeader(props) {
-  return (
-    <div className="mb-4 text-center">
-      <h2 className="text-white text-3xl font-bold tracking-tight">{props.title}</h2>
-      {props.subtitle ? (
-        <p className="text-white/80 text-base mt-1">{props.subtitle}</p>
-      ) : null}
-    </div>
-  );
+return (
+<div className="mb-4 text-center">
+<h2 className="text-white text-3xl font-bold tracking-tight">{props.title}</h2>
+{props.subtitle ? (
+<p className="text-white/80 text-base mt-1">{props.subtitle}</p>
+) : null}
+</div>
+);
 }
 
 function BackgroundHeader(props) {
-  return (
-    <div className="text-center pb-3" style={{ paddingTop: '0' }}>
-      <h1 className="text-white text-3xl font-bold tracking-tight">{props.title}</h1>
-      {props.subtitle ? (
-        <p className="text-white/80 text-base mt-1">{props.subtitle}</p>
-      ) : null}
-    </div>
-  );
+return (
+<div className=“text-center pb-3” style={{ paddingTop: ‘0’ }}>
+<h1 className="text-white text-3xl font-bold tracking-tight">{props.title}</h1>
+{props.subtitle ? (
+<p className="text-white/80 text-base mt-1">{props.subtitle}</p>
+) : null}
+</div>
+);
 }
 
 function PageCard(props) {
-  return (
-    <div className="ohw-page-bg pb-32" style={{ paddingTop: '12vh' }}>
-      <div className="card-mw rounded-2xl p-5 max-w-2xl mx-auto" style={{ marginTop: '2vh' }}>
-        {props.children}
-      </div>
-    </div>
-  );
+return (
+<div className=“ohw-page-bg pb-32” style={{ paddingTop: ‘12vh’ }}>
+<div className=“card-mw rounded-2xl p-5 max-w-2xl mx-auto” style={{ marginTop: ‘2vh’ }}>
+{props.children}
+</div>
+</div>
+);
 }
 
 // ── LOGIN SCREEN ──────────────────────────────────────────────────────────────
 function LoginScreen(props) {
-  const [mode, setMode] = useState('login');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [busy, setBusy] = useState(false);
-  const [err, setErr] = useState('');
+const [mode, setMode] = useState(‘login’);
+const [email, setEmail] = useState(’’);
+const [password, setPassword] = useState(’’);
+const [busy, setBusy] = useState(false);
+const [err, setErr] = useState(’’);
 
-  function submit() {
-    setErr('');
-    if (!email || !password) { setErr('Email and password required'); return; }
-    if (mode === 'register' && password.length < 8) {
-      setErr('Password must be at least 8 characters'); return;
-    }
-    setBusy(true);
-    if (document.activeElement) document.activeElement.blur();
-    const path = mode === 'register' ? '/auth/register' : '/auth/login';
-    fetch(API_BASE + path, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email: email, password: password })
-    })
-      .then(function(r) { return r.json().then(function(d) { return { ok: r.ok, d: d }; }); })
-      .then(function(res) {
-        setBusy(false);
-        if (!res.ok) { setErr(res.d.detail || 'Auth failed'); return; }
-        try {
-          localStorage.setItem(TOKEN_KEY, res.d.token);
-          localStorage.setItem(USER_KEY, JSON.stringify({ user_id: res.d.user_id, email: res.d.email }));
-        } catch (e) {}
-        props.onAuth({ user_id: res.d.user_id, email: res.d.email });
-      })
-      .catch(function() { setBusy(false); setErr('Network error'); });
-  }
+function submit() {
+setErr(’’);
+if (!email || !password) { setErr(‘Email and password required’); return; }
+if (mode === ‘register’ && password.length < 8) {
+setErr(‘Password must be at least 8 characters’); return;
+}
+setBusy(true);
+if (document.activeElement) document.activeElement.blur();
+const path = mode === ‘register’ ? ‘/auth/register’ : ‘/auth/login’;
+fetch(API_BASE + path, {
+method: ‘POST’,
+headers: { ‘Content-Type’: ‘application/json’ },
+body: JSON.stringify({ email: email, password: password })
+})
+.then(function(r) { return r.json().then(function(d) { return { ok: r.ok, d: d }; }); })
+.then(function(res) {
+setBusy(false);
+if (!res.ok) { setErr(res.d.detail || ‘Auth failed’); return; }
+try {
+localStorage.setItem(TOKEN_KEY, res.d.token);
+localStorage.setItem(USER_KEY, JSON.stringify({ user_id: res.d.user_id, email: res.d.email }));
+} catch (e) {}
+props.onAuth({ user_id: res.d.user_id, email: res.d.email });
+})
+.catch(function() { setBusy(false); setErr(‘Network error’); });
+}
 
-  return (
-    <div className="ohw-bg-login min-h-screen flex flex-col items-center px-4"
-      style={{ paddingTop: '4vh', paddingBottom: '8vh' }}>
-      <div className="w-full max-w-sm flex-1 flex flex-col">
+return (
+<div className=“ohw-bg-login min-h-screen flex flex-col items-center px-4”
+style={{ paddingTop: ‘4vh’, paddingBottom: ‘8vh’ }}>
+<div className="w-full max-w-sm flex-1 flex flex-col">
 
-        {/* Big two-line app-name header — centered vertically in top half */}
-        <div className="flex-1 flex items-center justify-center">
-          <h1 className="text-white font-black text-center"
-            style={{
-              fontSize: '5rem',
-              letterSpacing: '0.04em',
-              lineHeight: 0.95,
-              textTransform: 'uppercase',
-              textShadow: '0 4px 16px rgba(0,0,0,0.9)',
-              WebkitTextStroke: '1px #fff',
-              margin: 0
-            }}>
-            Our<br/>Health<br/>Watch
-          </h1>
-        </div>
-
-        <div className="card-mw rounded-2xl p-5 space-y-3">
-          <input type="email" placeholder="Email address" value={email}
-            onChange={function(e){ setEmail(e.target.value); }}
-            onFocus={function(e){
-              setTimeout(function(){
-                if (e.target && e.target.scrollIntoView) e.target.scrollIntoView({ block: 'center', behavior: 'smooth' });
-              }, 300);
-            }}
-            autoComplete="email"
-            className="w-full px-4 py-3 text-xl rounded-xl bg-white/15 border border-white/30 text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-blue-400" />
-          <input type="password" placeholder="Password" value={password}
-            onChange={function(e){ setPassword(e.target.value); }}
-            onFocus={function(e){
-              setTimeout(function(){
-                if (e.target && e.target.scrollIntoView) e.target.scrollIntoView({ block: 'center', behavior: 'smooth' });
-              }, 300);
-            }}
-            onKeyDown={function(e){ if (e.key === 'Enter') { setMode('login'); submit(); } }}
-            autoComplete={mode === 'register' ? 'new-password' : 'current-password'}
-            className="w-full px-4 py-3 text-xl rounded-xl bg-white/15 border border-white/30 text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-blue-400" />
-
-          {err ? <p className="text-red-300 text-xl text-center">{err}</p> : null}
-
-          <div className="grid grid-cols-2 gap-3">
-            <button onClick={function(){ setMode('login'); setErr(''); submit(); }} disabled={busy}
-              className="py-4 rounded-xl bg-white text-gray-900 text-2xl font-bold disabled:opacity-50">
-              {busy && mode === 'login' ? '...' : 'Sign In'}
-            </button>
-            <button onClick={function(){ setMode('register'); setErr(''); submit(); }} disabled={busy}
-              className="py-4 rounded-xl bg-white/15 text-white text-2xl font-bold border border-white/40 disabled:opacity-50">
-              {busy && mode === 'register' ? '...' : 'Register'}
-            </button>
-          </div>
-
-          <p className="text-white/60 text-base text-center pt-1">You'll stay signed in automatically</p>
-        </div>
-      </div>
+```
+    {/* Big two-line app-name header — centered vertically in top half */}
+    <div className="flex-1 flex items-center justify-center">
+      <h1 className="text-white font-black text-center"
+        style={{
+          fontSize: '5rem',
+          letterSpacing: '0.04em',
+          lineHeight: 0.95,
+          textTransform: 'uppercase',
+          textShadow: '0 4px 16px rgba(0,0,0,0.9)',
+          WebkitTextStroke: '1px #fff',
+          margin: 0
+        }}>
+        Our<br/>Health<br/>Watch
+      </h1>
     </div>
-  );
+
+    <div className="card-mw rounded-2xl p-5 space-y-3">
+      <input type="email" placeholder="Email address" value={email}
+        onChange={function(e){ setEmail(e.target.value); }}
+        onFocus={function(e){
+          setTimeout(function(){
+            if (e.target && e.target.scrollIntoView) e.target.scrollIntoView({ block: 'center', behavior: 'smooth' });
+          }, 300);
+        }}
+        autoComplete="email"
+        className="w-full px-4 py-3 text-xl rounded-xl bg-white/15 border border-white/30 text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-blue-400" />
+      <input type="password" placeholder="Password" value={password}
+        onChange={function(e){ setPassword(e.target.value); }}
+        onFocus={function(e){
+          setTimeout(function(){
+            if (e.target && e.target.scrollIntoView) e.target.scrollIntoView({ block: 'center', behavior: 'smooth' });
+          }, 300);
+        }}
+        onKeyDown={function(e){ if (e.key === 'Enter') { setMode('login'); submit(); } }}
+        autoComplete={mode === 'register' ? 'new-password' : 'current-password'}
+        className="w-full px-4 py-3 text-xl rounded-xl bg-white/15 border border-white/30 text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-blue-400" />
+
+      {err ? <p className="text-red-300 text-xl text-center">{err}</p> : null}
+
+      <div className="grid grid-cols-2 gap-3">
+        <button onClick={function(){ setMode('login'); setErr(''); submit(); }} disabled={busy}
+          className="py-4 rounded-xl bg-white text-gray-900 text-2xl font-bold disabled:opacity-50">
+          {busy && mode === 'login' ? '...' : 'Sign In'}
+        </button>
+        <button onClick={function(){ setMode('register'); setErr(''); submit(); }} disabled={busy}
+          className="py-4 rounded-xl bg-white/15 text-white text-2xl font-bold border border-white/40 disabled:opacity-50">
+          {busy && mode === 'register' ? '...' : 'Register'}
+        </button>
+      </div>
+
+      <p className="text-white/60 text-base text-center pt-1">You'll stay signed in automatically</p>
+    </div>
+  </div>
+</div>
+```
+
+);
 }
 
 // ── RECALL CARD (drug + device) ───────────────────────────────────────────────
 function RecallCard(props) {
-  const r = props.recall;
-  const cls = (r.classification || '').trim();
-  return (
-    <div className="card-recall rounded-lg p-4 mb-3">
-      <div className="flex items-start justify-between gap-2 mb-2">
-        <div className="flex-1">
-          <div className="flex items-center gap-2 flex-wrap">
-            <span className={"text-white text-xs px-2 py-1 rounded font-bold " + sourceBadgeClass(r.source)}>
-              {sourceLabel(r.source)}
-            </span>
-            {cls ? (
-              <span className={"text-white text-xs px-2 py-1 rounded font-bold " + classBadge(cls)}>
-                Class {cls}
-              </span>
-            ) : null}
-            {r.status ? (
-              <span className="text-white/80 text-xs px-2 py-1 rounded border border-white/30">
-                {r.status}
-              </span>
-            ) : null}
-          </div>
-          <h3 className="font-bold text-white text-lg mt-2">{r.brand || 'Unknown firm'}</h3>
-          {r.product_description ? (
-            <p className="text-white/90 text-sm mt-1">{r.product_description}</p>
-          ) : null}
-        </div>
-      </div>
-      {r.reason ? (
-        <p className="text-white/80 text-sm mt-2">
-          <span className="text-white/60">Reason: </span>{r.reason}
-        </p>
-      ) : null}
-      {r.recall_date ? (
-        <p className="text-white/60 text-xs mt-2">
-          Recalled: {fmtDate(r.recall_date)}
-        </p>
-      ) : null}
-      {props.children}
-    </div>
-  );
+const r = props.recall;
+const cls = (r.classification || ‘’).trim();
+return (
+<div className="card-recall rounded-lg p-4 mb-3">
+<div className="flex items-start justify-between gap-2 mb-2">
+<div className="flex-1">
+<div className="flex items-center gap-2 flex-wrap">
+<span className={“text-white text-xs px-2 py-1 rounded font-bold “ + sourceBadgeClass(r.source)}>
+{sourceLabel(r.source)}
+</span>
+{cls ? (
+<span className={“text-white text-xs px-2 py-1 rounded font-bold “ + classBadge(cls)}>
+Class {cls}
+</span>
+) : null}
+{r.status ? (
+<span className="text-white/80 text-xs px-2 py-1 rounded border border-white/30">
+{r.status}
+</span>
+) : null}
+</div>
+<h3 className="font-bold text-white text-lg mt-2">{r.brand || ‘Unknown firm’}</h3>
+{r.product_description ? (
+<p className="text-white/90 text-sm mt-1">{r.product_description}</p>
+) : null}
+</div>
+</div>
+{r.reason ? (
+<p className="text-white/80 text-sm mt-2">
+<span className="text-white/60">Reason: </span>{r.reason}
+</p>
+) : null}
+{r.distribution ? (
+<p className="text-white/60 text-xs mt-1">
+Distribution: {r.distribution}
+</p>
+) : null}
+{r.recall_date ? (
+<p className="text-white/60 text-xs mt-2">
+Recalled: {fmtDate(r.recall_date)}
+</p>
+) : null}
+{props.children}
+</div>
+);
 }
 
 // ── OUTBREAK CARD (NORS, WHO DON, VSP) ────────────────────────────────────────
 function OutbreakCard(props) {
-  const o = props.outbreak;
-  return (
-    <div className="card-recall rounded-lg p-4 mb-3">
-      <div className="flex items-start justify-between gap-2 mb-2">
-        <div className="flex-1">
-          <div className="flex items-center gap-2 flex-wrap">
-            <span className={"text-white text-xs px-2 py-1 rounded font-bold " + sourceBadgeClass(o.source)}>
-              {sourceLabel(o.source)}
-            </span>
-            {o.agent ? (
-              <span className="text-white text-xs px-2 py-1 rounded font-bold bg-emerald-700">
-                {o.agent}
-              </span>
-            ) : null}
-          </div>
-          <h3 className="font-bold text-white text-lg mt-2">{o.title || 'Outbreak'}</h3>
-          {o.summary ? (
-            <p className="text-white/90 text-sm mt-1">{o.summary}</p>
-          ) : null}
-        </div>
-      </div>
-      {o.region ? (
-        <p className="text-white/80 text-sm mt-2">
-          <span className="text-white/60">Region: </span>{o.region}
-        </p>
-      ) : null}
-      {o.report_date ? (
-        <p className="text-white/60 text-xs mt-2">
-          Reported: {o.report_date}
-        </p>
-      ) : null}
-      {props.children}
-    </div>
-  );
-}
-
-// ── ADD-TO-WATCHLIST BUTTON (firehose opt-in) ─────────────────────────────────
-function AddToWatchlistButton(props) {
-  const [added, setAdded] = useState(false);
-  const [busy, setBusy] = useState(false);
-
-  function add() {
-    if (added || busy) return;
-    setBusy(true);
-    const body = {
-      kind: props.kind || 'product',
-      brand: props.brand || null,
-      product_name: props.product_name || null,
-      upc: props.upc || null,
-      keyword: props.keyword || null,
-      category: props.category || null,
-    };
-    fetch(API_BASE + '/watchlist', {
-      method: 'POST',
-      headers: jsonHeaders(),
-      body: JSON.stringify(body),
-    })
-      .then(function(r) { return r.json().then(function(d){ return { ok: r.ok, d: d }; }); })
-      .then(function(res) {
-        setBusy(false);
-        if (res.ok) setAdded(true);
-      })
-      .catch(function() { setBusy(false); });
-  }
-
-  if (added) {
-    return (
-      <button disabled
-        className="mt-3 w-full px-3 py-2 rounded bg-green-700 text-white text-sm font-semibold">
-        ✓ On your watchlist
-      </button>
-    );
-  }
-  return (
-    <button onClick={add} disabled={busy}
-      className="mt-3 w-full px-3 py-2 rounded bg-blue-700 hover:bg-blue-600 text-white text-sm font-semibold disabled:opacity-50">
-      {busy ? '…' : '+ Add to Watchlist'}
-    </button>
-  );
+const o = props.outbreak;
+return (
+<div className="card-recall rounded-lg p-4 mb-3">
+<div className="flex items-start justify-between gap-2 mb-2">
+<div className="flex-1">
+<div className="flex items-center gap-2 flex-wrap">
+<span className={“text-white text-xs px-2 py-1 rounded font-bold “ + sourceBadgeClass(o.source)}>
+{sourceLabel(o.source)}
+</span>
+{o.agent ? (
+<span className="text-white text-xs px-2 py-1 rounded font-bold bg-emerald-700">
+{o.agent}
+</span>
+) : null}
+</div>
+<h3 className="font-bold text-white text-lg mt-2">{o.title || ‘Outbreak’}</h3>
+{o.summary ? (
+<p className="text-white/90 text-sm mt-1">{o.summary}</p>
+) : null}
+</div>
+</div>
+{o.region ? (
+<p className="text-white/80 text-sm mt-2">
+<span className="text-white/60">Region: </span>{o.region}
+</p>
+) : null}
+{o.report_date ? (
+<p className="text-white/60 text-xs mt-2">
+Reported: {o.report_date}
+</p>
+) : null}
+{props.children}
+</div>
+);
 }
 
 // ── LATEST RECALLS VIEW (firehose, source + date filter) ──────────────────────
 function LatestRecallsView(props) {
-  const [items, setItems] = useState(null);
-  const [busy, setBusy] = useState(true);
-  const [source, setSource] = useState(props.initialSource || '');
-  const [ingest, setIngest] = useState({});
+const [items, setItems] = useState(null);
+const [busy, setBusy] = useState(true);
+const [source, setSource] = useState(props.initialSource || ‘’);
+const [ingest, setIngest] = useState({});
 
-  function load() {
-    setBusy(true);
-    let url = API_BASE + '/recalls/recent?limit=30';
-    if (source) url = url + '&source=' + source;
-    fetch(url)
-      .then(function(r) { return r.json(); })
-      .then(function(d) {
-        setItems(d.results || []);
-        setIngest(d.ingest_status || {});
-        setBusy(false);
-      })
-      .catch(function() { setBusy(false); setItems([]); });
-  }
+function load() {
+setBusy(true);
+let url = API_BASE + ‘/recalls/recent?limit=30’;
+if (source) url = url + ‘&source=’ + source;
+fetch(url)
+.then(function(r) { return r.json(); })
+.then(function(d) {
+setItems(d.results || []);
+setIngest(d.ingest_status || {});
+setBusy(false);
+})
+.catch(function() { setBusy(false); setItems([]); });
+}
 
-  useEffect(load, [source]);
+useEffect(load, [source]);
 
-  // Build "last checked" string from ingest_status
-  const checkedKey = source || 'fda_drug';
-  const checkedAt = (ingest[checkedKey] && ingest[checkedKey].last_checked_at) || null;
-  const checkedRel = checkedAt ? fmtRelative(checkedAt) : '';
+// Build “last checked” string from ingest_status
+const checkedKey = source || ‘fda_drug’;
+const checkedAt = (ingest[checkedKey] && ingest[checkedKey].last_checked_at) || null;
+const checkedRel = checkedAt ? fmtRelative(checkedAt) : ‘’;
 
-  return (
-    <PageCard>
-      <CardPageHeader title="Latest Recalls" subtitle="FDA Class I–III, Ongoing, last 30 days" />
+return (
+<PageCard>
+<CardPageHeader title="Latest Recalls" subtitle="FDA Class I–III, Ongoing, last 30 days" />
 
-      <div className="mb-4 flex flex-wrap gap-2 justify-center">
-        <button onClick={function(){ setSource(''); }}
-          className={"text-sm px-3 py-1 rounded " + (source === ''
-            ? "bg-blue-700 text-white"
-            : "bg-gray-700 text-white/80 border border-gray-500")}>All</button>
-        <button onClick={function(){ setSource('fda_drug'); }}
-          className={"text-sm px-3 py-1 rounded " + (source === 'fda_drug'
-            ? "bg-blue-700 text-white"
-            : "bg-gray-700 text-white/80 border border-gray-500")}>Drugs</button>
-        <button onClick={function(){ setSource('fda_device'); }}
-          className={"text-sm px-3 py-1 rounded " + (source === 'fda_device'
-            ? "bg-blue-700 text-white"
-            : "bg-gray-700 text-white/80 border border-gray-500")}>Devices</button>
-      </div>
+```
+  <div className="mb-4 flex flex-wrap gap-2 justify-center">
+    <button onClick={function(){ setSource(''); }}
+      className={"text-sm px-3 py-1 rounded " + (source === ''
+        ? "bg-blue-700 text-white"
+        : "bg-gray-700 text-white/80 border border-gray-500")}>All</button>
+    <button onClick={function(){ setSource('fda_drug'); }}
+      className={"text-sm px-3 py-1 rounded " + (source === 'fda_drug'
+        ? "bg-blue-700 text-white"
+        : "bg-gray-700 text-white/80 border border-gray-500")}>Drugs</button>
+    <button onClick={function(){ setSource('fda_device'); }}
+      className={"text-sm px-3 py-1 rounded " + (source === 'fda_device'
+        ? "bg-blue-700 text-white"
+        : "bg-gray-700 text-white/80 border border-gray-500")}>Devices</button>
+  </div>
 
-      <div className="mb-4 text-center">
-        <button onClick={props.onBack}
-          className="text-base px-4 py-2 rounded bg-gray-700 text-white border border-gray-500 hover:bg-gray-600">
-          ← Back
-        </button>
-      </div>
+  <div className="mb-4 text-center">
+    <button onClick={props.onBack}
+      className="text-base px-4 py-2 rounded bg-gray-700 text-white border border-gray-500 hover:bg-gray-600">
+      ← Back
+    </button>
+  </div>
 
-      {busy ? (
-        <p className="text-white text-base text-center">Loading…</p>
-      ) : (items === null || items.length === 0) ? (
-        <div className="text-center py-4">
-          <p className="text-white text-base">No active recalls in the last 30 days.</p>
-          {checkedRel ? (
-            <p className="text-white/60 text-sm mt-2 italic">
-              Last checked {checkedRel}. We're watching.
-            </p>
-          ) : null}
-        </div>
-      ) : (
-        <div>
-          {checkedRel ? (
-            <p className="text-white/60 text-sm text-center mb-3 italic">
-              Last checked {checkedRel} · {items.length} active recall{items.length === 1 ? '' : 's'}
-            </p>
-          ) : null}
-          {items.map(function(r) {
-            return (
-              <RecallCard key={r.id} recall={r}>
-                <AddToWatchlistButton
-                  brand={r.brand}
-                  product_name={null}
-                  upc={r.upc || null}
-                  category={r.source} />
-              </RecallCard>
-            );
-          })}
-        </div>
-      )}
+  {busy ? (
+    <p className="text-white text-base text-center">Loading…</p>
+  ) : (items === null || items.length === 0) ? (
+    <div className="text-center py-4">
+      <p className="text-white text-base">No active recalls in the last 30 days.</p>
+      {checkedRel ? (
+        <p className="text-white/60 text-sm mt-2 italic">
+          Last checked {checkedRel}. We're watching.
+        </p>
+      ) : null}
+    </div>
+  ) : (
+    <div>
+      {checkedRel ? (
+        <p className="text-white/60 text-sm text-center mb-3 italic">
+          Last checked {checkedRel} · {items.length} active recall{items.length === 1 ? '' : 's'}
+        </p>
+      ) : null}
+      {items.map(function(r) {
+        return (
+          <RecallCard key={r.id} recall={r} />
+        );
+      })}
+    </div>
+  )}
 
-      <div className="mt-4 text-center">
-        <button onClick={props.onBack}
-          className="text-base px-4 py-2 rounded bg-gray-700 text-white border border-gray-500 hover:bg-gray-600">
-          ← Back
-        </button>
-      </div>
-    </PageCard>
-  );
+  <div className="mt-4 text-center">
+    <button onClick={props.onBack}
+      className="text-base px-4 py-2 rounded bg-gray-700 text-white border border-gray-500 hover:bg-gray-600">
+      ← Back
+    </button>
+  </div>
+</PageCard>
+```
+
+);
 }
 
 // ── LATEST OUTBREAKS VIEW (NORS now, WHO DON / VSP later) ─────────────────────
 function LatestOutbreaksView(props) {
-  const [items, setItems] = useState(null);
-  const [busy, setBusy] = useState(true);
-  const [source, setSource] = useState(props.initialSource || '');
-  const [ingest, setIngest] = useState({});
+const [items, setItems] = useState(null);
+const [busy, setBusy] = useState(true);
+const [source, setSource] = useState(props.initialSource || ‘’);
+const [ingest, setIngest] = useState({});
 
-  function load() {
-    setBusy(true);
-    let url = API_BASE + '/outbreaks/recent?limit=30';
-    if (source) url = url + '&source=' + source;
-    fetch(url)
-      .then(function(r) { return r.json(); })
-      .then(function(d) {
-        setItems(d.results || []);
-        setIngest(d.ingest_status || {});
-        setBusy(false);
-      })
-      .catch(function() { setBusy(false); setItems([]); });
-  }
-
-  useEffect(load, [source]);
-
-  const checkedKey = source || 'cdc_nors';
-  const checkedAt = (ingest[checkedKey] && ingest[checkedKey].last_checked_at) || null;
-  const checkedRel = checkedAt ? fmtRelative(checkedAt) : '';
-
-  return (
-    <PageCard>
-      <CardPageHeader title="Latest Outbreaks" subtitle="CDC NORS foodborne &amp; waterborne · WHO DON coming" />
-
-      <div className="mb-4 flex flex-wrap gap-2 justify-center">
-        <button onClick={function(){ setSource(''); }}
-          className={"text-sm px-3 py-1 rounded " + (source === ''
-            ? "bg-blue-700 text-white"
-            : "bg-gray-700 text-white/80 border border-gray-500")}>All</button>
-        <button onClick={function(){ setSource('cdc_nors'); }}
-          className={"text-sm px-3 py-1 rounded " + (source === 'cdc_nors'
-            ? "bg-blue-700 text-white"
-            : "bg-gray-700 text-white/80 border border-gray-500")}>NORS</button>
-      </div>
-
-      <div className="mb-4 text-center">
-        <button onClick={props.onBack}
-          className="text-base px-4 py-2 rounded bg-gray-700 text-white border border-gray-500 hover:bg-gray-600">
-          ← Back
-        </button>
-      </div>
-
-      {busy ? (
-        <p className="text-white text-base text-center">Loading…</p>
-      ) : (items === null || items.length === 0) ? (
-        <div className="text-center py-4">
-          <p className="text-white text-base">No recent outbreaks on file.</p>
-          {checkedRel ? (
-            <p className="text-white/60 text-sm mt-2 italic">
-              Last checked {checkedRel}. We're watching.
-            </p>
-          ) : null}
-        </div>
-      ) : (
-        <div>
-          {checkedRel ? (
-            <p className="text-white/60 text-sm text-center mb-3 italic">
-              Last checked {checkedRel} · {items.length} outbreak{items.length === 1 ? '' : 's'}
-            </p>
-          ) : null}
-          {items.map(function(o) {
-            return (
-              <OutbreakCard key={o.id} outbreak={o}>
-                <AddToWatchlistButton
-                  kind="outbreak"
-                  brand={null}
-                  product_name={null}
-                  keyword={o.agent || o.title}
-                  category={o.source} />
-              </OutbreakCard>
-            );
-          })}
-        </div>
-      )}
-
-      <div className="mt-4 text-center">
-        <button onClick={props.onBack}
-          className="text-base px-4 py-2 rounded bg-gray-700 text-white border border-gray-500 hover:bg-gray-600">
-          ← Back
-        </button>
-      </div>
-    </PageCard>
-  );
+function load() {
+setBusy(true);
+let url = API_BASE + ‘/outbreaks/recent?limit=30’;
+if (source) url = url + ‘&source=’ + source;
+fetch(url)
+.then(function(r) { return r.json(); })
+.then(function(d) {
+setItems(d.results || []);
+setIngest(d.ingest_status || {});
+setBusy(false);
+})
+.catch(function() { setBusy(false); setItems([]); });
 }
 
-// ── BROWSE PAGE (the canonical "search" tab, OHW edition) ─────────────────────
-function BrowsePage() {
-  const [view, setView] = useState('home'); // 'home' | 'recalls' | 'outbreaks'
+useEffect(load, [source]);
 
-  if (view === 'recalls') {
-    return <LatestRecallsView onBack={function(){ setView('home'); }} />;
-  }
-  if (view === 'outbreaks') {
-    return <LatestOutbreaksView onBack={function(){ setView('home'); }} />;
-  }
+const checkedKey = source || ‘cdc_nors’;
+const checkedAt = (ingest[checkedKey] && ingest[checkedKey].last_checked_at) || null;
+const checkedRel = checkedAt ? fmtRelative(checkedAt) : ‘’;
 
-  return (
-    <div className="min-h-screen flex flex-col px-3"
-      style={{ paddingTop: '4vh', paddingBottom: '14rem' }}>
-      <div className="flex-1 flex flex-col items-center justify-center text-center">
-        <h1 className="text-white font-black"
-          style={{
-            fontSize: '3.5rem',
-            lineHeight: '1.05',
-            letterSpacing: '-0.02em',
-            textShadow: '0 2px 8px rgba(0,0,0,0.6)',
-          }}>
-          OurHealth<span className="text-blue-300">.Watch</span>
-        </h1>
-        <p className="text-white/85 text-lg mt-3 italic max-w-md">
-          Watching what watches you.
+return (
+<PageCard>
+<CardPageHeader title="Latest Outbreaks" subtitle="CDC NORS foodborne &amp; waterborne · WHO DON coming" />
+
+```
+  <div className="mb-4 flex flex-wrap gap-2 justify-center">
+    <button onClick={function(){ setSource(''); }}
+      className={"text-sm px-3 py-1 rounded " + (source === ''
+        ? "bg-blue-700 text-white"
+        : "bg-gray-700 text-white/80 border border-gray-500")}>All</button>
+    <button onClick={function(){ setSource('cdc_nors'); }}
+      className={"text-sm px-3 py-1 rounded " + (source === 'cdc_nors'
+        ? "bg-blue-700 text-white"
+        : "bg-gray-700 text-white/80 border border-gray-500")}>NORS</button>
+  </div>
+
+  <div className="mb-4 text-center">
+    <button onClick={props.onBack}
+      className="text-base px-4 py-2 rounded bg-gray-700 text-white border border-gray-500 hover:bg-gray-600">
+      ← Back
+    </button>
+  </div>
+
+  {busy ? (
+    <p className="text-white text-base text-center">Loading…</p>
+  ) : (items === null || items.length === 0) ? (
+    <div className="text-center py-4">
+      <p className="text-white text-base">No recent outbreaks on file.</p>
+      {checkedRel ? (
+        <p className="text-white/60 text-sm mt-2 italic">
+          Last checked {checkedRel}. We're watching.
         </p>
-        <p className="text-white/70 text-base mt-1">
-          Drug &amp; device recalls. Outbreak alerts. From FDA, CDC, and WHO.
+      ) : null}
+    </div>
+  ) : (
+    <div>
+      {checkedRel ? (
+        <p className="text-white/60 text-sm text-center mb-3 italic">
+          Last checked {checkedRel} · {items.length} outbreak{items.length === 1 ? '' : 's'}
         </p>
+      ) : null}
+      {items.map(function(o) {
+        return (
+          <OutbreakCard key={o.id} outbreak={o} />
+        );
+      })}
+    </div>
+  )}
+
+  <div className="mt-4 text-center">
+    <button onClick={props.onBack}
+      className="text-base px-4 py-2 rounded bg-gray-700 text-white border border-gray-500 hover:bg-gray-600">
+      ← Back
+    </button>
+  </div>
+</PageCard>
+```
+
+);
+}
+
+// ── SEARCH PAGE (v0.1.7: PLACE-BASED, mirrors EarthWatch + CW pattern) ────────
+// Watchlist primitive is a PLACE — search by region, optionally narrow by
+// state and city, the place lands in Watchlist, cron monitors it for
+// outbreaks + recalls. Browse Recalls / Browse Outbreaks buttons live UNDER
+// the search inputs as the firehose fallback.
+function SearchPage(props) {
+const [view, setView] = useState(‘home’); // ‘home’ | ‘recalls’ | ‘outbreaks’
+const [region, setRegion] = useState(’’);
+const [state, setStateVal] = useState(’’);
+const [city, setCity] = useState(’’);
+const [busy, setBusy] = useState(false);
+const [msg, setMsg] = useState(’’);
+const [msgKind, setMsgKind] = useState(’’); // ‘ok’ | ‘err’
+
+if (view === ‘recalls’) {
+return <LatestRecallsView onBack={function(){ setView(‘home’); }} />;
+}
+if (view === ‘outbreaks’) {
+return <LatestOutbreaksView onBack={function(){ setView(‘home’); }} />;
+}
+
+function submit() {
+setMsg(’’); setMsgKind(’’);
+if (!region && !state && !city) {
+setMsg(‘Pick a region, or enter a state or city.’); setMsgKind(‘err’); return;
+}
+if (document.activeElement) document.activeElement.blur();
+setBusy(true);
+const body = {
+region: region || null,
+state: state || null,
+city: city || null,
+};
+fetch(API_BASE + ‘/places’, {
+method: ‘POST’,
+headers: jsonHeaders(),
+body: JSON.stringify(body),
+})
+.then(function(r) { return r.json().then(function(d){ return { ok: r.ok, d: d }; }); })
+.then(function(res) {
+setBusy(false);
+if (!res.ok) {
+setMsg(res.d.detail || ‘Could not add place’); setMsgKind(‘err’); return;
+}
+const name = res.d.name || [city, state, region].filter(Boolean).join(’, ‘);
+setMsg(‘Added “’ + name + ‘” to your Watchlist.’); setMsgKind(‘ok’);
+setRegion(’’); setStateVal(’’); setCity(’’);
+if (props.onPlaceAdded) props.onPlaceAdded();
+})
+.catch(function() {
+setBusy(false); setMsg(‘Network error’); setMsgKind(‘err’);
+});
+}
+
+return (
+<div className=“min-h-screen flex flex-col px-3”
+style={{ paddingTop: ‘4vh’, paddingBottom: ‘8rem’ }}>
+
+```
+  <div className="flex flex-col items-center justify-center text-center mb-4">
+    <h1 className="text-white font-black"
+      style={{
+        fontSize: '3.5rem',
+        lineHeight: '1.05',
+        letterSpacing: '-0.02em',
+        textShadow: '0 2px 8px rgba(0,0,0,0.6)',
+      }}>
+      OurHealth<span className="text-blue-300">.Watch</span>
+    </h1>
+    <p className="text-white/85 text-lg mt-3 italic max-w-md">
+      Watching what watches you.
+    </p>
+    <p className="text-white/70 text-base mt-1 max-w-md">
+      Are there outbreaks where you're going? Watch a place. We'll alert you.
+    </p>
+  </div>
+
+  <div className="max-w-md mx-auto w-full">
+    <div className="card-mw rounded-2xl p-5 space-y-3">
+
+      <p className="text-white/80 text-base text-center leading-snug">
+        Pick a region, state, or city. Add it to your Watchlist.
+      </p>
+
+      {/* Region dropdown — same taxonomy as CW/EW */}
+      <div className="relative">
+        <select
+          value={region}
+          onChange={function(e){ setRegion(e.target.value); }}
+          className="w-full px-4 py-3 pr-10 text-xl rounded-xl bg-white/15 border border-white/30 text-white focus:outline-none focus:ring-2 focus:ring-blue-400 cursor-pointer"
+          style={{ appearance: 'none', WebkitAppearance: 'none', MozAppearance: 'none', backgroundImage: 'none', color: region ? '#ffffff' : 'rgba(255,255,255,0.55)' }}
+        >
+          <option value="" style={{ color: '#9ca3af', backgroundColor: '#0c1e3a' }}>Region</option>
+          {OH_REGIONS.map(function(r) {
+            return <option key={r} value={r} style={{ color: '#ffffff', backgroundColor: '#0c1e3a' }}>{r}</option>;
+          })}
+        </select>
+        <svg className="w-5 h-5 absolute right-3 top-1/2 -translate-y-1/2 text-blue-300 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+        </svg>
       </div>
 
-      <div className="max-w-md mx-auto w-full mt-2 mb-6 space-y-3">
+      <input type="text" placeholder="State (optional)" value={state}
+        onChange={function(e){ setStateVal(e.target.value); }}
+        autoCorrect="off" autoCapitalize="words" autoComplete="off" spellCheck="false"
+        className="w-full px-4 py-3 text-xl rounded-xl bg-white/15 border border-white/30 text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-blue-400" />
+
+      <input type="text" placeholder="City (optional)" value={city}
+        onChange={function(e){ setCity(e.target.value); }}
+        onKeyDown={function(e){ if (e.key === 'Enter') submit(); }}
+        autoCorrect="off" autoCapitalize="words" autoComplete="off" spellCheck="false"
+        className="w-full px-4 py-3 text-xl rounded-xl bg-white/15 border border-white/30 text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-blue-400" />
+
+      {msg ? (
+        <p className={"text-center text-base " + (msgKind === 'ok' ? 'text-emerald-300' : 'text-red-300')}>
+          {msg}
+        </p>
+      ) : null}
+
+      <button onClick={submit} disabled={busy}
+        className="w-full py-4 rounded-xl bg-white text-gray-900 text-2xl font-bold disabled:opacity-50">
+        {busy ? '...' : 'Add to Watchlist'}
+      </button>
+
+      <p className="text-white/50 text-xs text-center italic px-1">
+        Cron starts watching the moment you add it.
+      </p>
+
+      {/* Browse buttons demoted BELOW the search — firehose fallback. */}
+      <div className="pt-3 border-t border-white/15 space-y-3">
+        <p className="text-white/60 text-xs text-center uppercase tracking-wider">
+          Or browse the firehose
+        </p>
         <button onClick={function(){ setView('recalls'); }}
-          className="w-full py-4 rounded-xl bg-blue-700 hover:bg-blue-600 text-white text-lg font-semibold">
+          className="w-full py-3 rounded-xl bg-blue-700 hover:bg-blue-600 text-white text-base font-semibold">
           Browse Latest Recalls
         </button>
         <button onClick={function(){ setView('outbreaks'); }}
-          className="w-full py-4 rounded-xl bg-emerald-700 hover:bg-emerald-600 text-white text-lg font-semibold">
+          className="w-full py-3 rounded-xl bg-emerald-700 hover:bg-emerald-600 text-white text-base font-semibold">
           Browse Latest Outbreaks
         </button>
       </div>
-
-      <p className="text-white/50 text-xs text-center px-6 italic">
-        Tap any item to add it to your Watchlist. We'll alert you when status changes.
-      </p>
     </div>
-  );
+
+    <p className="text-white/40 text-xs text-center px-6 italic mt-4">
+      FDA · CDC · WHO. Based on publicly available sources.
+    </p>
+  </div>
+</div>
+```
+
+);
 }
 
-// ── ITEM DRAWER (watchlist item detail) ───────────────────────────────────────
-function ItemDrawer(props) {
-  const item = props.item;
-  const [busy, setBusy] = useState(true);
-  const [matchResult, setMatchResult] = useState(null);
-  const [lastChecked, setLastChecked] = useState(item.last_checked || null);
+// ── PLACE CARD (row in Watchlist / My Places list) ────────────────────────────
+function PlaceCard(props) {
+const p = props.place;
+const parts = [p.city, p.state, p.region].filter(Boolean);
+const subtitle = parts.length ? parts.join(’ · ’) : (p.name || ‘’);
+return (
+<button onClick={function(){ props.onOpen(p); }}
+className=“w-full text-left card-recall rounded-lg p-4 mb-3 hover:bg-gray-700/40”>
+<div className="flex items-start justify-between gap-2">
+<div className="flex-1 min-w-0">
+<h3 className="font-bold text-white text-xl truncate">{p.name || ‘Place’}</h3>
+{subtitle && subtitle !== p.name ? (
+<p className="text-white/70 text-base truncate">{subtitle}</p>
+) : null}
+<div className="flex items-center gap-2 mt-1 flex-wrap">
+{p.in_my_places ? (
+<span className="text-white text-xs px-2 py-1 rounded font-bold bg-amber-700">
+★ My Places
+</span>
+) : null}
+<span className="text-white/60 text-xs">
+Watching · {Math.round(p.radius_mi || 50)} mi radius
+</span>
+</div>
+</div>
+<span className="text-white text-sm">tap to open</span>
+</div>
+</button>
+);
+}
 
-  function refresh() {
-    setBusy(true);
-    fetch(API_BASE + '/watchlist/' + item.id + '/refresh', { headers: authHeaders() })
-      .then(function(r) { return r.json().then(function(d){ return { ok: r.ok, d: d }; }); })
-      .then(function(res) {
-        setBusy(false);
-        if (res.ok) {
-          setMatchResult(res.d);
-          setLastChecked(res.d.last_checked || null);
-          if (props.onChanged) props.onChanged();
-        } else {
-          setMatchResult({ matched: false, error: res.d.detail || 'Refresh failed' });
-        }
-      })
-      .catch(function() {
-        setBusy(false);
-        setMatchResult({ matched: false, error: 'Network error' });
-      });
-  }
+// ── PLACE DRAWER (v0.1.7: outbreaks + recalls matched to this location) ───────
+function PlaceDrawer(props) {
+const place = props.place;
+const [busy, setBusy] = useState(true);
+const [data, setData] = useState(null);
+const [err, setErr] = useState(’’);
+const [actionBusy, setActionBusy] = useState(false);
 
-  // Auto-fire the recheck the moment the drawer opens — "tap = instant search result"
-  useEffect(function(){ refresh(); }, []);
+function load() {
+setBusy(true); setErr(’’);
+fetch(API_BASE + ‘/places/’ + place.id + ‘/events’, { headers: authHeaders() })
+.then(function(r) { return r.json().then(function(d){ return { ok: r.ok, d: d }; }); })
+.then(function(res) {
+setBusy(false);
+if (!res.ok) { setErr(res.d.detail || ‘Could not load’); return; }
+setData(res.d);
+})
+.catch(function() { setBusy(false); setErr(‘Network error’); });
+}
 
-  // Copy this item to the Saved list. Original stays put. MW pattern: close drawer on success.
-  function copyTo(monitoring) {
-    setBusy(true);
-    const body = {
-      kind: item.kind || 'product',
-      brand: item.brand || null,
-      product_name: item.product_name || null,
-      upc: item.upc || null,
-      keyword: item.keyword || null,
-      category: item.category || null,
-      monitoring: monitoring,
-    };
-    fetch(API_BASE + '/watchlist', {
-      method: 'POST',
-      headers: jsonHeaders(),
-      body: JSON.stringify(body),
-    })
-      .then(function() {
-        setBusy(false);
-        if (props.onChanged) props.onChanged();
-        props.onClose();
-      })
-      .catch(function() { setBusy(false); });
-  }
+useEffect(function(){ load(); }, []);
 
-  function remove() {
-    if (!confirm('Remove from list?')) return;
-    setBusy(true);
-    fetch(API_BASE + '/watchlist/' + item.id, {
-      method: 'DELETE',
-      headers: authHeaders(),
-    })
-      .then(function() {
-        setBusy(false);
-        if (props.onChanged) props.onChanged();
-        props.onClose();
-      })
-      .catch(function() { setBusy(false); });
-  }
+function toggleMyPlaces() {
+if (actionBusy) return;
+setActionBusy(true);
+const newVal = !place.in_my_places;
+fetch(API_BASE + ‘/places/’ + place.id, {
+method: ‘PATCH’,
+headers: jsonHeaders(),
+body: JSON.stringify({ in_my_places: newVal }),
+})
+.then(function() {
+setActionBusy(false);
+if (props.onChanged) props.onChanged();
+props.onClose();
+})
+.catch(function() { setActionBusy(false); });
+}
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center drawer-backdrop"
-      onClick={props.onClose}>
-      <div className="card-mw rounded-t-2xl w-full max-w-lg p-5 max-h-[85vh] overflow-y-auto scrollbar-thin"
-        onClick={function(e){ e.stopPropagation(); }}>
-        <div className="flex items-start justify-between mb-2">
-          <div className="flex-1">
-            <h3 className="text-white text-2xl font-bold">{item.brand || item.keyword || 'Item'}</h3>
-            {item.product_name ? <p className="text-white text-base">{item.product_name}</p> : null}
-            {item.upc ? <p className="text-white text-sm mt-1">UPC: {item.upc}</p> : null}
-            {item.category ? (
-              <span className={"inline-block text-white text-xs px-2 py-1 rounded font-bold mt-2 " + sourceBadgeClass(item.category)}>
-                {sourceLabel(item.category)}
-              </span>
-            ) : null}
-          </div>
-          <button onClick={props.onClose} className="text-white hover:text-gray-300 text-3xl leading-none px-2">×</button>
-        </div>
+function remove() {
+if (!confirm(‘Remove this place from your Watchlist? (This also removes it from My Places.)’)) return;
+setActionBusy(true);
+fetch(API_BASE + ‘/places/’ + place.id, {
+method: ‘DELETE’,
+headers: authHeaders(),
+})
+.then(function() {
+setActionBusy(false);
+if (props.onChanged) props.onChanged();
+props.onClose();
+})
+.catch(function() { setActionBusy(false); });
+}
 
-        <p className="text-white text-sm mb-4">
-          {busy ? 'Rechecking…' : (lastChecked ? 'Last checked ' + fmtRelative(lastChecked) : '')}
+const outbreaks = (data && data.outbreaks) || [];
+const recalls = (data && data.recalls) || [];
+const parts = [place.city, place.state, place.region].filter(Boolean);
+const subtitle = parts.length ? parts.join(’ · ’) : ‘’;
+
+return (
+<div className="fixed inset-0 z-50 flex items-end justify-center drawer-backdrop"
+onClick={props.onClose}>
+<div className=“card-mw rounded-t-2xl w-full max-w-lg p-5 max-h-[85vh] overflow-y-auto scrollbar-thin”
+onClick={function(e){ e.stopPropagation(); }}>
+<div className="flex items-start justify-between mb-2">
+<div className="flex-1">
+<h3 className="text-white text-2xl font-bold">{place.name}</h3>
+{subtitle ? <p className="text-white/70 text-base">{subtitle}</p> : null}
+{place.in_my_places ? (
+<span className="inline-block text-white text-xs px-2 py-1 rounded font-bold mt-2 bg-amber-700">
+★ Saved to My Places
+</span>
+) : null}
+</div>
+<button onClick={props.onClose} className="text-white hover:text-gray-300 text-3xl leading-none px-2">×</button>
+</div>
+
+```
+    {busy ? (
+      <p className="text-white text-base py-4 text-center">Checking for outbreaks and recalls at this location…</p>
+    ) : err ? (
+      <p className="text-red-300 text-base py-3">{err}</p>
+    ) : (
+      <div>
+        <p className="text-white/60 text-sm mb-3 italic">
+          {(outbreaks.length === 0 && recalls.length === 0)
+            ? 'Nothing active here right now. We\'re watching.'
+            : (outbreaks.length + ' outbreak' + (outbreaks.length === 1 ? '' : 's') + ' · ' +
+               recalls.length + ' recall' + (recalls.length === 1 ? '' : 's'))}
         </p>
 
-        {/* Match result panel — fires automatically on open. Re-uses the same RecallCard / OutbreakCard from the firehose so the look matches search results exactly. */}
-        {busy ? (
-          <p className="text-white text-base py-4 text-center">Looking up latest information…</p>
-        ) : matchResult && matchResult.error ? (
-          <div className="card-recall rounded-lg p-3 border border-red-500/30">
-            <p className="text-red-300 text-sm">{matchResult.error}</p>
-          </div>
-        ) : matchResult && matchResult.matched && matchResult.type === 'outbreak' && matchResult.outbreak ? (
-          <div>
-            <p className="text-emerald-300 text-lg font-bold mb-2">⚠ Active outbreak match</p>
-            <OutbreakCard outbreak={matchResult.outbreak} />
-          </div>
-        ) : matchResult && matchResult.matched && matchResult.recall ? (
-          <div>
-            <p className="text-red-300 text-lg font-bold mb-2">⚠ Recall match found</p>
-            <RecallCard recall={matchResult.recall} />
-          </div>
-        ) : matchResult && matchResult.type === 'outbreak' ? (
-          <div className="card-recall rounded-lg p-4 mb-3 text-center">
-            <p className="text-emerald-300 text-xl font-bold">No active outbreaks</p>
-            <p className="text-white text-base mt-1">No matching outbreak in current CDC/WHO feeds.</p>
-          </div>
-        ) : matchResult ? (
-          <div className="card-recall rounded-lg p-4 mb-3 text-center">
-            <p className="text-emerald-300 text-xl font-bold">No active recalls</p>
-            <p className="text-white text-base mt-1">No FDA recall currently matches this item.</p>
-            <p className="text-white/50 text-xs mt-2 italic">
-              Some brand-name searches miss generic-only recalls — we're improving this.
-            </p>
+        {outbreaks.length > 0 ? (
+          <div className="mb-4">
+            <p className="text-emerald-300 text-lg font-bold mb-2">Outbreaks</p>
+            {outbreaks.map(function(o) { return <OutbreakCard key={o.id} outbreak={o} />; })}
           </div>
         ) : null}
 
-        <div className="flex flex-wrap gap-2 mt-4">
-          {item.monitoring ? (
-            <button onClick={function(){ copyTo(false); }} disabled={busy}
-              className="flex-1 py-4 text-xl rounded-xl bg-white/15 text-white font-bold border border-white/30 hover:bg-white/20 disabled:opacity-50">
-              Save to Saved
-            </button>
-          ) : null}
-          <button onClick={remove} disabled={busy}
-            className="flex-1 py-4 text-xl rounded-xl bg-red-900/60 text-white font-bold border border-red-600 hover:bg-red-800/70 disabled:opacity-50">
-            🗑 Remove
-          </button>
-        </div>
+        {recalls.length > 0 ? (
+          <div className="mb-4">
+            <p className="text-red-300 text-lg font-bold mb-2">Recalls</p>
+            {recalls.map(function(r) { return <RecallCard key={r.id} recall={r} />; })}
+          </div>
+        ) : null}
       </div>
+    )}
+
+    <div className="flex flex-wrap gap-2 mt-4">
+      <button onClick={toggleMyPlaces} disabled={actionBusy}
+        className="flex-1 py-4 text-xl rounded-xl bg-amber-700 hover:bg-amber-600 text-white font-bold border border-amber-500 disabled:opacity-50">
+        {place.in_my_places ? 'Remove from My Places' : '★ Save to My Places'}
+      </button>
+      <button onClick={remove} disabled={actionBusy}
+        className="flex-1 py-4 text-xl rounded-xl bg-red-900/60 text-white font-bold border border-red-600 hover:bg-red-800/70 disabled:opacity-50">
+        🗑 Remove
+      </button>
     </div>
-  );
+  </div>
+</div>
+```
+
+);
 }
 
-// ── WATCHLIST PAGE ────────────────────────────────────────────────────────────
+// ── WATCHLIST PAGE (renders PLACES, not recall items) ─────────────────────────
 function WatchlistPage(props) {
-  const monitoring = props.items.filter(function(i){ return i.monitoring; });
+// All places on the Watchlist (regardless of in_my_places state).
+const places = props.places || [];
 
-  return (
-    <div className="px-3 pb-32" style={{ paddingTop: '12vh' }}>
-      <BackgroundHeader title={"Watchlist (" + monitoring.length + ")"}
-        subtitle="Actively monitored — alerts fire on status changes" />
-      <div className="card-mw rounded-2xl p-5 max-w-2xl mx-auto" style={{ marginTop: '2vh' }}>
-        {monitoring.length === 0 ? (
-          <p className="text-white text-xl text-center py-6">
-            Your Watchlist is empty. Browse Latest Recalls or Outbreaks and tap any item to add.
-          </p>
-        ) : (
-          monitoring.map(function(item) {
-            return (
-              <button key={item.id} onClick={function(){ props.onOpen(item); }}
-                className="w-full text-left card-recall rounded-lg p-4 mb-3 hover:bg-gray-700/40">
-                <div className="flex items-start justify-between gap-2">
-                  <div className="flex-1">
-                    <h3 className="font-bold text-white text-xl">
-                      {item.brand || item.keyword || 'Item'}
-                    </h3>
-                    {item.product_name ? (
-                      <p className="text-white text-base">{item.product_name}</p>
-                    ) : null}
-                    {item.category ? (
-                      <span className={"inline-block text-white text-xs px-2 py-1 rounded font-bold mt-1 " + sourceBadgeClass(item.category)}>
-                        {sourceLabel(item.category)}
-                      </span>
-                    ) : null}
-                  </div>
-                  {item.has_alert ? (
-                    <span className="alert-pill text-white text-xs px-2 py-1 rounded font-bold">ALERT</span>
-                  ) : (
-                    <span className="text-white text-sm">tap to open</span>
-                  )}
-                </div>
-              </button>
-            );
-          })
-        )}
-      </div>
-    </div>
-  );
+return (
+<div className=“px-3 pb-32” style={{ paddingTop: ‘12vh’ }}>
+<BackgroundHeader title={“Watchlist (” + places.length + “)”}
+subtitle=“Places we’re actively monitoring” />
+<div className=“card-mw rounded-2xl p-5 max-w-2xl mx-auto” style={{ marginTop: ‘2vh’ }}>
+{places.length === 0 ? (
+<p className="text-white text-xl text-center py-6">
+Your Watchlist is empty. Use Search to add a region, state, or city.
+</p>
+) : (
+places.map(function(p) {
+return <PlaceCard key={p.id} place={p} onOpen={props.onOpen} />;
+})
+)}
+</div>
+</div>
+);
 }
 
-// ── SAVED PAGE (canonical Pantry/Memories equivalent — items with monitoring off) ─
-function SavedPage(props) {
-  const saved = props.items.filter(function(i){ return !i.monitoring; });
-  return (
-    <div className="px-3 pb-32" style={{ paddingTop: '12vh' }}>
-      <BackgroundHeader title={"Saved (" + saved.length + ")"}
-        subtitle="Items you've parked — tap to recheck on demand" />
-      <div className="card-mw rounded-2xl p-5 max-w-2xl mx-auto" style={{ marginTop: '2vh' }}>
-        {saved.length === 0 ? (
-          <p className="text-white text-xl text-center py-6">
-            Nothing saved. Items move here from your Watchlist when you pause monitoring.
-          </p>
-        ) : (
-          saved.map(function(item) {
-            return (
-              <button key={item.id} onClick={function(){ props.onOpen(item); }}
-                className="w-full text-left card-recall rounded-lg p-4 mb-3 hover:bg-gray-700/40">
-                <div className="flex items-start justify-between gap-2">
-                  <div className="flex-1">
-                    <h3 className="font-bold text-white text-xl">{item.brand || item.keyword || 'Item'}</h3>
-                    {item.product_name ? (
-                      <p className="text-white text-base">{item.product_name}</p>
-                    ) : null}
-                  </div>
-                  <span className="text-white text-sm">tap to check</span>
-                </div>
-              </button>
-            );
-          })
-        )}
-      </div>
-    </div>
-  );
+// ── MY PLACES PAGE (places where in_my_places=true) ───────────────────────────
+function MyPlacesPage(props) {
+const saved = (props.places || []).filter(function(p){ return p.in_my_places; });
+return (
+<div className=“px-3 pb-32” style={{ paddingTop: ‘12vh’ }}>
+<BackgroundHeader title={“My Places (” + saved.length + “)”}
+subtitle=“Saved places — they stay on the Watchlist too” />
+<div className=“card-mw rounded-2xl p-5 max-w-2xl mx-auto” style={{ marginTop: ‘2vh’ }}>
+{saved.length === 0 ? (
+<p className="text-white text-xl text-center py-6">
+No saved places yet. Open any place from your Watchlist and tap ★ Save to My Places.
+</p>
+) : (
+saved.map(function(p) {
+return <PlaceCard key={p.id} place={p} onOpen={props.onOpen} />;
+})
+)}
+</div>
+</div>
+);
 }
 
 // ── ALERTS PAGE ───────────────────────────────────────────────────────────────
 function AlertsPage(props) {
-  const [items, setItems] = useState([]);
-  const [busy, setBusy] = useState(true);
+const [items, setItems] = useState([]);
+const [busy, setBusy] = useState(true);
 
-  function load() {
-    setBusy(true);
-    fetch(API_BASE + '/notifications', { headers: authHeaders() })
-      .then(function(r) { return r.json(); })
-      .then(function(d) { setItems(d.results || []); setBusy(false); })
-      .catch(function() { setBusy(false); setItems([]); });
-  }
+function load() {
+setBusy(true);
+fetch(API_BASE + ‘/notifications’, { headers: authHeaders() })
+.then(function(r) { return r.json(); })
+.then(function(d) { setItems(d.results || []); setBusy(false); })
+.catch(function() { setBusy(false); setItems([]); });
+}
 
-  function dismiss(id) {
-    fetch(API_BASE + '/notifications/' + id, {
-      method: 'DELETE',
-      headers: authHeaders(),
-    })
-      .then(function() { load(); })
-      .catch(function() {});
-  }
+function dismiss(id) {
+fetch(API_BASE + ‘/notifications/’ + id, {
+method: ‘DELETE’,
+headers: authHeaders(),
+})
+.then(function() { load(); })
+.catch(function() {});
+}
 
-  useEffect(load, []);
+useEffect(load, []);
 
-  return (
-    <div className="px-3 pb-32" style={{ paddingTop: '12vh' }}>
-      <BackgroundHeader title={"Alerts (" + items.length + ")"}
-        subtitle="Status changes on your watched items" />
-      <div className="card-mw rounded-2xl p-5 max-w-2xl mx-auto" style={{ marginTop: '2vh' }}>
-        {busy ? (
-          <p className="text-white text-base text-center">Loading…</p>
-        ) : items.length === 0 ? (
-          <p className="text-white text-xl text-center py-6">
-            No alerts. We're watching — when something on your Watchlist changes, you'll see it here.
-          </p>
-        ) : (
-          items.map(function(n) {
-            return (
-              <div key={n.id} className="card-recall rounded-lg p-4 mb-3">
-                <p className="text-white text-base">{n.message}</p>
-                {n.source ? (
-                  <span className={"inline-block text-white text-xs px-2 py-1 rounded font-bold mt-2 " + sourceBadgeClass(n.source)}>
-                    {sourceLabel(n.source)}
-                  </span>
-                ) : null}
-                <p className="text-white/60 text-xs mt-2">{fmtRelative(n.created_at)}</p>
-                <button onClick={function(){ dismiss(n.id); }}
-                  className="mt-2 text-sm text-white/70 hover:text-white underline">
-                  Dismiss
-                </button>
-              </div>
-            );
-          })
-        )}
-      </div>
-    </div>
-  );
+return (
+<div className=“px-3 pb-32” style={{ paddingTop: ‘12vh’ }}>
+<BackgroundHeader title={“Alerts (” + items.length + “)”}
+subtitle=“Outbreak and recall activity at your places” />
+<div className=“card-mw rounded-2xl p-5 max-w-2xl mx-auto” style={{ marginTop: ‘2vh’ }}>
+{busy ? (
+<p className="text-white text-base text-center">Loading…</p>
+) : items.length === 0 ? (
+<p className="text-white text-xl text-center py-6">
+No alerts. We’re watching — when something happens at a place on your Watchlist, you’ll see it here.
+</p>
+) : (
+items.map(function(n) {
+return (
+<div key={n.id} className="card-recall rounded-lg p-4 mb-3">
+<p className="text-white text-base">{n.message}</p>
+{n.source ? (
+<span className={“inline-block text-white text-xs px-2 py-1 rounded font-bold mt-2 “ + sourceBadgeClass(n.source)}>
+{sourceLabel(n.source)}
+</span>
+) : null}
+<p className="text-white/60 text-xs mt-2">{fmtRelative(n.created_at)}</p>
+<button onClick={function(){ dismiss(n.id); }}
+className=“mt-2 text-sm text-white/70 hover:text-white underline”>
+Dismiss
+</button>
+</div>
+);
+})
+)}
+</div>
+</div>
+);
 }
 
 // ── INFO / ABOUT PAGE ─────────────────────────────────────────────────────────
 function InfoPage(props) {
-  function logout() {
-    if (confirm('Log out?')) {
-      try {
-        localStorage.removeItem(TOKEN_KEY);
-        localStorage.removeItem(USER_KEY);
-      } catch (e) {}
-      props.onLogout();
-    }
-  }
+function logout() {
+if (confirm(‘Log out?’)) {
+try {
+localStorage.removeItem(TOKEN_KEY);
+localStorage.removeItem(USER_KEY);
+} catch (e) {}
+props.onLogout();
+}
+}
 
-  return (
-    <div className="px-3 pb-32" style={{ paddingTop: '12vh' }}>
-      <BackgroundHeader title="Info" subtitle="About OurHealth.Watch" />
-      <div className="card-mw rounded-2xl p-5 max-w-2xl mx-auto" style={{ marginTop: '2vh' }}>
-        <p className="text-white text-base">
-          OurHealth.Watch aggregates official public-health surveillance feeds —
-          FDA drug and device recalls, CDC outbreak reports, WHO disease outbreak
-          news — so you can watch what's happening in your health space without
-          checking ten government websites.
-        </p>
-        <p className="text-white/80 text-sm mt-3">
-          Browse the firehose. Add items you care about to your Watchlist.
-          When their status changes, you get an alert. That's it.
-        </p>
-        <p className="text-white/60 text-xs mt-4 italic">
-          Based on publicly available sources. Not medical advice.
-        </p>
+return (
+<div className=“px-3 pb-32” style={{ paddingTop: ‘12vh’ }}>
+<BackgroundHeader title="Info" subtitle="About OurHealth.Watch" />
+<div className=“card-mw rounded-2xl p-5 max-w-2xl mx-auto” style={{ marginTop: ‘2vh’ }}>
+<p className="text-white text-base">
+OurHealth.Watch monitors official public-health feeds — FDA drug and
+device recalls, CDC outbreak reports, WHO disease outbreak news — for
+places you care about. Pick a region, state, or city. Add it to your
+Watchlist. We’ll alert you when something happens there.
+</p>
+<p className="text-white/80 text-sm mt-3">
+Companion to Cruise Ship Watch and EarthWatch. Watch a place. Save the
+ones you care about. That’s it.
+</p>
+<p className="text-white/60 text-xs mt-4 italic">
+Based on publicly available sources. Not medical advice.
+</p>
 
-        <hr className="border-white/20 my-5" />
+```
+    <hr className="border-white/20 my-5" />
 
-        <p className="text-white/80 text-sm">
-          <span className="text-white/60">Account:</span> {props.email}
-        </p>
-        <p className="text-white/60 text-xs mt-3">
-          app v{APP_VERSION} · api v{props.apiVersion}
-        </p>
+    <p className="text-white/80 text-sm">
+      <span className="text-white/60">Account:</span> {props.email}
+    </p>
+    <p className="text-white/60 text-xs mt-3">
+      app v{APP_VERSION} · api v{props.apiVersion}
+    </p>
 
-        <button onClick={logout}
-          className="w-full mt-5 px-4 py-2 rounded bg-red-800 hover:bg-red-700 text-white text-base font-semibold">
-          Log out
-        </button>
-      </div>
-    </div>
-  );
+    <button onClick={logout}
+      className="w-full mt-5 px-4 py-2 rounded bg-red-800 hover:bg-red-700 text-white text-base font-semibold">
+      Log out
+    </button>
+  </div>
+</div>
+```
+
+);
 }
 
 // ── BOTTOM NAV ────────────────────────────────────────────────────────────────
 function NavIcon(props) {
-  // Inline SVG per tab id, matching canonical MW vocabulary
-  const id = props.id;
-  if (id === 'browse') return (
-    <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-        d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-    </svg>
-  );
-  if (id === 'watchlist') return (
-    <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-        d="M15 12a3 3 0 11-6 0 3 3 0 016 0z M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-    </svg>
-  );
-  if (id === 'saved') return (
-    <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-        d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
-    </svg>
-  );
-  if (id === 'info') return (
-    <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-        d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-    </svg>
-  );
-  if (id === 'alerts') return (
-    <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-        d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
-    </svg>
-  );
-  return null;
+const id = props.id;
+if (id === ‘search’) return (
+<svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+</svg>
+);
+if (id === ‘watchlist’) return (
+<svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+d="M15 12a3 3 0 11-6 0 3 3 0 016 0z M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+</svg>
+);
+if (id === ‘myplaces’) return (
+<svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+</svg>
+);
+if (id === ‘info’) return (
+<svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+</svg>
+);
+if (id === ‘alerts’) return (
+<svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+</svg>
+);
+return null;
 }
 
 function BottomNav(props) {
-  const tabs = [
-    { id: 'browse',    label: 'Browse'    },
-    { id: 'watchlist', label: 'Watchlist' },
-    { id: 'saved',     label: 'Saved'     },
-    { id: 'info',      label: 'Info'      },
-    { id: 'alerts',    label: 'Alerts'    }
-  ];
-  return (
-    <div style={{
-      position: 'fixed', bottom: 0, left: 0, right: 0,
-      backgroundColor: 'rgba(0,0,0,0.85)',
-      backdropFilter: 'blur(8px)',
-      borderTop: '1px solid rgba(255,255,255,0.15)',
-      padding: '0.5rem 0.75rem',
-      paddingBottom: 'max(0.5rem, env(safe-area-inset-bottom))',
-      zIndex: 40
-    }}>
-      <div className="flex justify-around max-w-2xl mx-auto">
-        {tabs.map(function(t) {
-          const active = props.page === t.id;
-          const isAlerts = t.id === 'alerts';
-          const cls = "flex flex-col items-center gap-0.5 px-1 py-1 relative " + (active ? "text-white" : "text-gray-400");
-          return (
-            <button key={t.id} className={cls}
-              onClick={function(){ props.onChange(t.id); }}>
-              <NavIcon id={t.id} />
-              {isAlerts && props.alertCount > 0 ? (
-                <span className="absolute top-0 right-0 bg-red-600 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
-                  {props.alertCount > 9 ? '9+' : props.alertCount}
-                </span>
-              ) : null}
-              <span className="text-xl font-medium">{t.label}</span>
-            </button>
-          );
-        })}
-      </div>
-    </div>
-  );
+const tabs = [
+{ id: ‘search’,    label: ‘Search’    },
+{ id: ‘watchlist’, label: ‘Watchlist’ },
+{ id: ‘myplaces’,  label: ‘My Places’ },
+{ id: ‘info’,      label: ‘Info’      },
+{ id: ‘alerts’,    label: ‘Alerts’    }
+];
+return (
+<div style={{
+position: ‘fixed’, bottom: 0, left: 0, right: 0,
+backgroundColor: ‘rgba(0,0,0,0.85)’,
+backdropFilter: ‘blur(8px)’,
+borderTop: ‘1px solid rgba(255,255,255,0.15)’,
+padding: ‘0.5rem 0.75rem’,
+paddingBottom: ‘max(0.5rem, env(safe-area-inset-bottom))’,
+zIndex: 40
+}}>
+<div className="flex justify-around max-w-2xl mx-auto">
+{tabs.map(function(t) {
+const active = props.page === t.id;
+const isAlerts = t.id === ‘alerts’;
+const cls = “flex flex-col items-center gap-0.5 px-1 py-1 relative “ + (active ? “text-white” : “text-gray-400”);
+return (
+<button key={t.id} className={cls}
+onClick={function(){ props.onChange(t.id); }}>
+<NavIcon id={t.id} />
+{isAlerts && props.alertCount > 0 ? (
+<span className="absolute top-0 right-0 bg-red-600 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
+{props.alertCount > 9 ? ‘9+’ : props.alertCount}
+</span>
+) : null}
+<span className="text-xl font-medium">{t.label}</span>
+</button>
+);
+})}
+</div>
+</div>
+);
 }
 
 // ── APP ROOT ──────────────────────────────────────────────────────────────────
 function App() {
-  const [user, setUser] = useState(null);
-  const [apiVersion, setApiVersion] = useState('...');
-  const [page, setPage] = useState('browse');
-  const [items, setItems] = useState([]);
-  const [drawerItem, setDrawerItem] = useState(null);
-  const [alertCount, setAlertCount] = useState(0);
+const [user, setUser] = useState(null);
+const [apiVersion, setApiVersion] = useState(’…’);
+const [page, setPage] = useState(‘search’);
+const [places, setPlaces] = useState([]);
+const [drawerPlace, setDrawerPlace] = useState(null);
+const [alertCount, setAlertCount] = useState(0);
 
-  // Cold-start: fetch health, hydrate auth.
-  useEffect(function() {
-    fetch(API_BASE + '/health')
-      .then(function(r) { return r.json(); })
-      .then(function(d) { setApiVersion(d.version || '?'); })
-      .catch(function() { setApiVersion('offline'); });
+// Cold-start: fetch health, hydrate auth.
+useEffect(function() {
+fetch(API_BASE + ‘/health’)
+.then(function(r) { return r.json(); })
+.then(function(d) { setApiVersion(d.version || ‘?’); })
+.catch(function() { setApiVersion(‘offline’); });
 
-    try {
-      const t = localStorage.getItem(TOKEN_KEY);
-      const u = localStorage.getItem(USER_KEY);
-      if (t && u) {
-        setUser(JSON.parse(u));
-      }
-    } catch (e) {}
-  }, []);
-
-  function loadWatchlist() {
-    if (!getToken()) return;
-    fetch(API_BASE + '/watchlist', { headers: authHeaders() })
-      .then(function(r) { return r.json(); })
-      .then(function(d) { setItems(d.results || []); })
-      .catch(function() {});
+```
+try {
+  const t = localStorage.getItem(TOKEN_KEY);
+  const u = localStorage.getItem(USER_KEY);
+  if (t && u) {
+    setUser(JSON.parse(u));
   }
-  function loadAlertCount() {
-    if (!getToken()) return;
-    fetch(API_BASE + '/notifications', { headers: authHeaders() })
-      .then(function(r) { return r.json(); })
-      .then(function(d) { setAlertCount((d.results || []).length); })
-      .catch(function() {});
-  }
+} catch (e) {}
+```
 
-  useEffect(function() {
-    if (user) {
-      loadWatchlist();
-      loadAlertCount();
-    }
-  }, [user]);
+}, []);
 
-  useEffect(function() {
-    if (!user) return;
-    const t = setTimeout(function() {
-      loadWatchlist();
-      loadAlertCount();
-    }, 0);
-    return function(){ clearTimeout(t); };
-  }, [page]);
-
-  function handleAuth(u) {
-    setUser(u);
-    setPage('browse');
-  }
-
-  function handleLogout() {
-    setUser(null);
-    setPage('browse');
-  }
-
-  function handleNavChange(newPage) {
-    if (document.activeElement) document.activeElement.blur();
-    setPage(newPage);
-  }
-
-  if (!user) {
-    return <LoginScreen onAuth={handleAuth} />;
-  }
-
-  return (
-    <div className="app-bg min-h-screen">
-      <main>
-        {page === 'browse' && <BrowsePage />}
-        {page === 'watchlist' && <WatchlistPage items={items} onOpen={setDrawerItem} />}
-        {page === 'saved' && <SavedPage items={items} onOpen={setDrawerItem} />}
-        {page === 'info' && <InfoPage email={user.email} apiVersion={apiVersion} onLogout={handleLogout} />}
-        {page === 'alerts' && <AlertsPage />}
-      </main>
-
-      <BottomNav page={page} onChange={handleNavChange} alertCount={alertCount} />
-
-      {drawerItem ? (
-        <ItemDrawer item={drawerItem}
-          onClose={function(){ setDrawerItem(null); }}
-          onChanged={function(){ loadWatchlist(); loadAlertCount(); }} />
-      ) : null}
-    </div>
-  );
+function loadPlaces() {
+if (!getToken()) return;
+fetch(API_BASE + ‘/places’, { headers: authHeaders() })
+.then(function(r) { return r.json(); })
+.then(function(d) { setPlaces(d.results || []); })
+.catch(function() {});
+}
+function loadAlertCount() {
+if (!getToken()) return;
+fetch(API_BASE + ‘/notifications’, { headers: authHeaders() })
+.then(function(r) { return r.json(); })
+.then(function(d) { setAlertCount((d.results || []).length); })
+.catch(function() {});
 }
 
-ReactDOM.render(<App />, document.getElementById('root'));
+useEffect(function() {
+if (user) {
+loadPlaces();
+loadAlertCount();
+}
+}, [user]);
+
+useEffect(function() {
+if (!user) return;
+const t = setTimeout(function() {
+loadPlaces();
+loadAlertCount();
+}, 0);
+return function(){ clearTimeout(t); };
+}, [page]);
+
+function handleAuth(u) {
+setUser(u);
+setPage(‘search’);
+}
+
+function handleLogout() {
+setUser(null);
+setPage(‘search’);
+}
+
+function handleNavChange(newPage) {
+if (document.activeElement) document.activeElement.blur();
+setPage(newPage);
+}
+
+function handleChanged() {
+loadPlaces();
+loadAlertCount();
+}
+
+if (!user) {
+return <LoginScreen onAuth={handleAuth} />;
+}
+
+return (
+<div className="app-bg min-h-screen">
+<main>
+{page === ‘search’ && <SearchPage onPlaceAdded={handleChanged} />}
+{page === ‘watchlist’ && <WatchlistPage places={places} onOpen={setDrawerPlace} />}
+{page === ‘myplaces’ && <MyPlacesPage places={places} onOpen={setDrawerPlace} />}
+{page === ‘info’ && <InfoPage email={user.email} apiVersion={apiVersion} onLogout={handleLogout} />}
+{page === ‘alerts’ && <AlertsPage />}
+</main>
+
+```
+  <BottomNav page={page} onChange={handleNavChange} alertCount={alertCount} />
+
+  {drawerPlace ? (
+    <PlaceDrawer place={drawerPlace}
+      onClose={function(){ setDrawerPlace(null); }}
+      onChanged={handleChanged} />
+  ) : null}
+</div>
+```
+
+);
+}
+
+ReactDOM.render(<App />, document.getElementById(‘root’));
 </script>
+
 </body>
 </html>
