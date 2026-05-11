@@ -568,7 +568,18 @@ function _arrayWithHoles(r) { if (Array.isArray(r)) return r; }
       _useState38 = _slicedToArray(_useState37, 2),
       msgKind = _useState38[0],
       setMsgKind = _useState38[1]; // 'ok' | 'err'
-
+    const _useState39 = useState(null),
+      _useState40 = _slicedToArray(_useState39, 2),
+      results = _useState40[0],
+      setResults = _useState40[1]; // null | { outbreaks, recalls, query }
+    const _useState41 = useState(false),
+      _useState42 = _slicedToArray(_useState41, 2),
+      savingTop = _useState42[0],
+      setSavingTop = _useState42[1];
+    const _useState43 = useState(''),
+      _useState44 = _slicedToArray(_useState43, 2),
+      savingResultKey = _useState44[0],
+      setSavingResultKey = _useState44[1];
     if (view === 'recalls') {
       return /*#__PURE__*/React.createElement(LatestRecallsView, {
         onBack: function () {
@@ -583,22 +594,24 @@ function _arrayWithHoles(r) { if (Array.isArray(r)) return r; }
         }
       });
     }
-    function submit() {
+    function submitSearch() {
       setMsg('');
       setMsgKind('');
-      if (!region && !state && !city) {
-        setMsg('Pick a region, or enter a state or city.');
+      const trimmedState = (state || '').trim();
+      if (!trimmedState) {
+        setMsg('State or Country is required.');
         setMsgKind('err');
         return;
       }
       if (document.activeElement) document.activeElement.blur();
       setBusy(true);
+      setResults(null);
       const body = {
         region: region || null,
-        state: state || null,
-        city: city || null
+        state: trimmedState,
+        city: (city || '').trim() || null
       };
-      fetch(API_BASE + '/places', {
+      fetch(API_BASE + '/search-events', {
         method: 'POST',
         headers: jsonHeaders(),
         body: JSON.stringify(body)
@@ -612,23 +625,114 @@ function _arrayWithHoles(r) { if (Array.isArray(r)) return r; }
       }).then(function (res) {
         setBusy(false);
         if (!res.ok) {
-          setMsg(res.d.detail || 'Could not add place');
+          setMsg(res.d.detail || 'Search failed');
           setMsgKind('err');
           return;
         }
-        const name = res.d.name || [city, state, region].filter(Boolean).join(', ');
-        setMsg('Added "' + name + '" to your Watchlist.');
-        setMsgKind('ok');
-        setRegion('');
-        setStateVal('');
-        setCity('');
-        if (props.onPlaceAdded) props.onPlaceAdded();
+        setResults(res.d);
       }).catch(function () {
         setBusy(false);
         setMsg('Network error');
         setMsgKind('err');
       });
     }
+
+    // Save the searched location to Watchlist (top-level button after results).
+    function saveSearchToWatchlist() {
+      if (savingTop) return;
+      setSavingTop(true);
+      setMsg('');
+      setMsgKind('');
+      const body = {
+        region: region || null,
+        state: (state || '').trim() || null,
+        city: (city || '').trim() || null
+      };
+      fetch(API_BASE + '/places', {
+        method: 'POST',
+        headers: jsonHeaders(),
+        body: JSON.stringify(body)
+      }).then(function (r) {
+        return r.json().then(function (d) {
+          return {
+            ok: r.ok,
+            d: d
+          };
+        });
+      }).then(function (res) {
+        setSavingTop(false);
+        if (!res.ok) {
+          setMsg(res.d.detail || 'Could not save');
+          setMsgKind('err');
+          return;
+        }
+        const name = res.d.name || [city, state, region].filter(Boolean).join(', ');
+        setMsg('Added "' + name + '" to your Watchlist.');
+        setMsgKind('ok');
+        if (props.onPlaceAdded) props.onPlaceAdded();
+        // Reset to fresh state so user knows the save took effect.
+        setResults(null);
+        setRegion('');
+        setStateVal('');
+        setCity('');
+      }).catch(function () {
+        setSavingTop(false);
+        setMsg('Network error');
+        setMsgKind('err');
+      });
+    }
+
+    // Per-outbreak quick-add. Saves a place using the outbreak's location.
+    function saveOutbreakLocation(o) {
+      const key = 'o:' + o.id;
+      if (savingResultKey) return;
+      setSavingResultKey(key);
+      // Outbreak region holds the state (NORS) or country (WHO DON).
+      const body = {
+        region: null,
+        state: o.region || o.location || null,
+        city: null
+      };
+      fetch(API_BASE + '/places', {
+        method: 'POST',
+        headers: jsonHeaders(),
+        body: JSON.stringify(body)
+      }).then(function (r) {
+        return r.json().then(function (d) {
+          return {
+            ok: r.ok,
+            d: d
+          };
+        });
+      }).then(function (res) {
+        setSavingResultKey('');
+        if (!res.ok) {
+          setMsg(res.d.detail || 'Could not save');
+          setMsgKind('err');
+          return;
+        }
+        const name = res.d.name || o.region || o.location || 'location';
+        setMsg('Added "' + name + '" to your Watchlist.');
+        setMsgKind('ok');
+        if (props.onPlaceAdded) props.onPlaceAdded();
+      }).catch(function () {
+        setSavingResultKey('');
+        setMsg('Network error');
+        setMsgKind('err');
+      });
+    }
+    function searchAgain() {
+      setResults(null);
+      setMsg('');
+      setMsgKind('');
+      setRegion('');
+      setStateVal('');
+      setCity('');
+    }
+    const outbreaks = results && results.outbreaks || [];
+    const recalls = results && results.recalls || [];
+    const totalResults = outbreaks.length + recalls.length;
+    const searchValid = !!(state && state.trim());
     return /*#__PURE__*/React.createElement("div", {
       className: "min-h-screen flex flex-col px-3",
       style: {
@@ -651,13 +755,40 @@ function _arrayWithHoles(r) { if (Array.isArray(r)) return r; }
       className: "text-white/85 text-lg mt-3 italic max-w-md"
     }, "Watching what watches you."), /*#__PURE__*/React.createElement("p", {
       className: "text-white/70 text-base mt-1 max-w-md"
-    }, "Are there outbreaks where you're going? Watch a place. We'll alert you.")), /*#__PURE__*/React.createElement("div", {
+    }, "Are there outbreaks where you're going? Search a place. We'll show you.")), /*#__PURE__*/React.createElement("div", {
       className: "max-w-md mx-auto w-full"
     }, /*#__PURE__*/React.createElement("div", {
       className: "card-mw rounded-2xl p-5 space-y-3"
     }, /*#__PURE__*/React.createElement("p", {
       className: "text-white/80 text-base text-center leading-snug"
-    }, "Pick a region, state, or city. Add it to your Watchlist."), /*#__PURE__*/React.createElement("div", {
+    }, "Enter a state or country to search."), /*#__PURE__*/React.createElement("input", {
+      type: "text",
+      placeholder: "State or Country (required)",
+      value: state,
+      onChange: function (e) {
+        setStateVal(e.target.value);
+      },
+      autoCorrect: "off",
+      autoCapitalize: "words",
+      autoComplete: "off",
+      spellCheck: "false",
+      className: "w-full px-4 py-3 text-xl rounded-xl bg-white/15 border border-white/30 text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-blue-400"
+    }), /*#__PURE__*/React.createElement("input", {
+      type: "text",
+      placeholder: "City (narrows the search)",
+      value: city,
+      onChange: function (e) {
+        setCity(e.target.value);
+      },
+      onKeyDown: function (e) {
+        if (e.key === 'Enter') submitSearch();
+      },
+      autoCorrect: "off",
+      autoCapitalize: "words",
+      autoComplete: "off",
+      spellCheck: "false",
+      className: "w-full px-4 py-3 text-xl rounded-xl bg-white/15 border border-white/30 text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-blue-400"
+    }), /*#__PURE__*/React.createElement("div", {
       className: "relative"
     }, /*#__PURE__*/React.createElement("select", {
       value: region,
@@ -678,7 +809,7 @@ function _arrayWithHoles(r) { if (Array.isArray(r)) return r; }
         color: '#9ca3af',
         backgroundColor: '#0c1e3a'
       }
-    }, "Region"), OH_REGIONS.map(function (r) {
+    }, "Region (optional)"), OH_REGIONS.map(function (r) {
       return /*#__PURE__*/React.createElement("option", {
         key: r,
         value: r,
@@ -697,42 +828,15 @@ function _arrayWithHoles(r) { if (Array.isArray(r)) return r; }
       strokeLinejoin: "round",
       strokeWidth: 2,
       d: "M19 9l-7 7-7-7"
-    }))), /*#__PURE__*/React.createElement("input", {
-      type: "text",
-      placeholder: "State (optional)",
-      value: state,
-      onChange: function (e) {
-        setStateVal(e.target.value);
-      },
-      autoCorrect: "off",
-      autoCapitalize: "words",
-      autoComplete: "off",
-      spellCheck: "false",
-      className: "w-full px-4 py-3 text-xl rounded-xl bg-white/15 border border-white/30 text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-blue-400"
-    }), /*#__PURE__*/React.createElement("input", {
-      type: "text",
-      placeholder: "City (optional)",
-      value: city,
-      onChange: function (e) {
-        setCity(e.target.value);
-      },
-      onKeyDown: function (e) {
-        if (e.key === 'Enter') submit();
-      },
-      autoCorrect: "off",
-      autoCapitalize: "words",
-      autoComplete: "off",
-      spellCheck: "false",
-      className: "w-full px-4 py-3 text-xl rounded-xl bg-white/15 border border-white/30 text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-blue-400"
-    }), msg ? /*#__PURE__*/React.createElement("p", {
+    }))), /*#__PURE__*/React.createElement("p", {
+      className: "text-white/55 text-xs italic px-1 -mt-1"
+    }, "Enter Region for broad search."), msg ? /*#__PURE__*/React.createElement("p", {
       className: "text-center text-base " + (msgKind === 'ok' ? 'text-emerald-300' : 'text-red-300')
     }, msg) : null, /*#__PURE__*/React.createElement("button", {
-      onClick: submit,
-      disabled: busy,
+      onClick: submitSearch,
+      disabled: busy || !searchValid,
       className: "w-full py-4 rounded-xl bg-white text-gray-900 text-2xl font-bold disabled:opacity-50"
-    }, busy ? '...' : 'Add to Watchlist'), /*#__PURE__*/React.createElement("p", {
-      className: "text-white/50 text-xs text-center italic px-1"
-    }, "Cron starts watching the moment you add it."), /*#__PURE__*/React.createElement("div", {
+    }, busy ? '...' : 'Search'), /*#__PURE__*/React.createElement("div", {
       className: "pt-3 border-t border-white/15 space-y-3"
     }, /*#__PURE__*/React.createElement("p", {
       className: "text-white/60 text-xs text-center uppercase tracking-wider"
@@ -746,9 +850,50 @@ function _arrayWithHoles(r) { if (Array.isArray(r)) return r; }
         setView('outbreaks');
       },
       className: "w-full py-3 rounded-xl bg-emerald-700 hover:bg-emerald-600 text-white text-base font-semibold"
-    }, "Browse Latest Outbreaks"))), /*#__PURE__*/React.createElement("p", {
+    }, "Browse Latest Outbreaks"))), results ? /*#__PURE__*/React.createElement("div", {
+      className: "card-mw rounded-2xl p-5 mt-4 space-y-3"
+    }, /*#__PURE__*/React.createElement("div", {
+      className: "flex items-center justify-between gap-2"
+    }, /*#__PURE__*/React.createElement("h3", {
+      className: "text-white text-xl font-bold"
+    }, "Results (", totalResults, ")"), /*#__PURE__*/React.createElement("button", {
+      onClick: searchAgain,
+      className: "text-blue-300 text-sm underline"
+    }, "Search again")), /*#__PURE__*/React.createElement("p", {
+      className: "text-white/70 text-sm italic"
+    }, totalResults === 0 ? 'Nothing currently reported for that location.' : outbreaks.length + ' outbreak' + (outbreaks.length === 1 ? '' : 's') + ' . ' + recalls.length + ' recall' + (recalls.length === 1 ? '' : 's')), /*#__PURE__*/React.createElement("button", {
+      onClick: saveSearchToWatchlist,
+      disabled: savingTop,
+      className: "w-full py-3 rounded-xl bg-white text-gray-900 text-lg font-bold disabled:opacity-50"
+    }, savingTop ? '...' : '+ Add to Watchlist'), outbreaks.length > 0 ? /*#__PURE__*/React.createElement("div", {
+      className: "pt-2"
+    }, /*#__PURE__*/React.createElement("p", {
+      className: "text-emerald-300 text-base font-bold mb-2"
+    }, "Outbreaks"), outbreaks.map(function (o) {
+      const key = 'o:' + o.id;
+      const isBusy = savingResultKey === key;
+      return /*#__PURE__*/React.createElement(OutbreakCard, {
+        key: o.id,
+        outbreak: o
+      }, o.region || o.location ? /*#__PURE__*/React.createElement("button", {
+        onClick: function () {
+          saveOutbreakLocation(o);
+        },
+        disabled: isBusy || !!savingResultKey,
+        className: "mt-2 px-3 py-1 text-xs rounded bg-white/15 border border-white/30 text-white font-bold hover:bg-white/25 disabled:opacity-50"
+      }, isBusy ? '...' : '+ Add to Watchlist') : null);
+    })) : null, recalls.length > 0 ? /*#__PURE__*/React.createElement("div", {
+      className: "pt-2"
+    }, /*#__PURE__*/React.createElement("p", {
+      className: "text-red-300 text-base font-bold mb-2"
+    }, "Recalls"), recalls.map(function (r) {
+      return /*#__PURE__*/React.createElement(RecallCard, {
+        key: r.id,
+        recall: r
+      });
+    })) : null) : null, /*#__PURE__*/React.createElement("p", {
       className: "text-white/40 text-xs text-center px-6 italic mt-4"
-    }, "FDA \xB7 CDC \xB7 WHO. Based on publicly available sources.")));
+    }, "FDA . CDC . WHO. Based on publicly available sources.")));
   }
 
   // -- PLACE CARD (row in Watchlist / My Places list) ----------------------------
@@ -783,22 +928,22 @@ function _arrayWithHoles(r) { if (Array.isArray(r)) return r; }
   // -- PLACE DRAWER (v0.1.7: outbreaks + recalls matched to this location) -------
   function PlaceDrawer(props) {
     const place = props.place;
-    const _useState39 = useState(true),
-      _useState40 = _slicedToArray(_useState39, 2),
-      busy = _useState40[0],
-      setBusy = _useState40[1];
-    const _useState41 = useState(null),
-      _useState42 = _slicedToArray(_useState41, 2),
-      data = _useState42[0],
-      setData = _useState42[1];
-    const _useState43 = useState(''),
-      _useState44 = _slicedToArray(_useState43, 2),
-      err = _useState44[0],
-      setErr = _useState44[1];
-    const _useState45 = useState(false),
+    const _useState45 = useState(true),
       _useState46 = _slicedToArray(_useState45, 2),
-      actionBusy = _useState46[0],
-      setActionBusy = _useState46[1];
+      busy = _useState46[0],
+      setBusy = _useState46[1];
+    const _useState47 = useState(null),
+      _useState48 = _slicedToArray(_useState47, 2),
+      data = _useState48[0],
+      setData = _useState48[1];
+    const _useState49 = useState(''),
+      _useState50 = _slicedToArray(_useState49, 2),
+      err = _useState50[0],
+      setErr = _useState50[1];
+    const _useState51 = useState(false),
+      _useState52 = _slicedToArray(_useState51, 2),
+      actionBusy = _useState52[0],
+      setActionBusy = _useState52[1];
     function load() {
       setBusy(true);
       setErr('');
@@ -990,14 +1135,14 @@ function _arrayWithHoles(r) { if (Array.isArray(r)) return r; }
 
   // -- ALERTS PAGE ---------------------------------------------------------------
   function AlertsPage(props) {
-    const _useState47 = useState([]),
-      _useState48 = _slicedToArray(_useState47, 2),
-      items = _useState48[0],
-      setItems = _useState48[1];
-    const _useState49 = useState(true),
-      _useState50 = _slicedToArray(_useState49, 2),
-      busy = _useState50[0],
-      setBusy = _useState50[1];
+    const _useState53 = useState([]),
+      _useState54 = _slicedToArray(_useState53, 2),
+      items = _useState54[0],
+      setItems = _useState54[1];
+    const _useState55 = useState(true),
+      _useState56 = _slicedToArray(_useState55, 2),
+      busy = _useState56[0],
+      setBusy = _useState56[1];
     function load() {
       setBusy(true);
       fetch(API_BASE + '/notifications', {
@@ -1220,30 +1365,30 @@ function _arrayWithHoles(r) { if (Array.isArray(r)) return r; }
 
   // -- APP ROOT ------------------------------------------------------------------
   function App() {
-    const _useState51 = useState(null),
-      _useState52 = _slicedToArray(_useState51, 2),
-      user = _useState52[0],
-      setUser = _useState52[1];
-    const _useState53 = useState('...'),
-      _useState54 = _slicedToArray(_useState53, 2),
-      apiVersion = _useState54[0],
-      setApiVersion = _useState54[1];
-    const _useState55 = useState('search'),
-      _useState56 = _slicedToArray(_useState55, 2),
-      page = _useState56[0],
-      setPage = _useState56[1];
-    const _useState57 = useState([]),
+    const _useState57 = useState(null),
       _useState58 = _slicedToArray(_useState57, 2),
-      places = _useState58[0],
-      setPlaces = _useState58[1];
-    const _useState59 = useState(null),
+      user = _useState58[0],
+      setUser = _useState58[1];
+    const _useState59 = useState('...'),
       _useState60 = _slicedToArray(_useState59, 2),
-      drawerPlace = _useState60[0],
-      setDrawerPlace = _useState60[1];
-    const _useState61 = useState(0),
+      apiVersion = _useState60[0],
+      setApiVersion = _useState60[1];
+    const _useState61 = useState('search'),
       _useState62 = _slicedToArray(_useState61, 2),
-      alertCount = _useState62[0],
-      setAlertCount = _useState62[1];
+      page = _useState62[0],
+      setPage = _useState62[1];
+    const _useState63 = useState([]),
+      _useState64 = _slicedToArray(_useState63, 2),
+      places = _useState64[0],
+      setPlaces = _useState64[1];
+    const _useState65 = useState(null),
+      _useState66 = _slicedToArray(_useState65, 2),
+      drawerPlace = _useState66[0],
+      setDrawerPlace = _useState66[1];
+    const _useState67 = useState(0),
+      _useState68 = _slicedToArray(_useState67, 2),
+      alertCount = _useState68[0],
+      setAlertCount = _useState68[1];
 
     // Cold-start: fetch health, hydrate auth.
     useEffect(function () {
