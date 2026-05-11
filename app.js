@@ -886,21 +886,19 @@ function _arrayWithHoles(r) { if (Array.isArray(r)) return r; }
         },
         disabled: !!savingTop,
         className: "w-full py-3 rounded-xl bg-white text-gray-900 text-lg font-bold disabled:opacity-50"
-      }, savingTop === 'wl' ? '...' : '+ Add to Watchlist'), /*#__PURE__*/React.createElement("button", {
-        onClick: function () {
-          saveSearchToPlaces(true);
-        },
-        disabled: !!savingTop,
-        className: "w-full py-3 rounded-xl bg-amber-700 hover:bg-amber-600 text-white text-lg font-bold border border-amber-500 disabled:opacity-50"
-      }, savingTop === 'mp' ? '...' : '* Save to My Places'), /*#__PURE__*/React.createElement("p", {
+      }, savingTop === 'wl' ? '...' : '+ Add to Watchlist'), /*#__PURE__*/React.createElement("p", {
         className: "text-white/55 text-xs italic text-center px-1"
-      }, "Watchlist: cron alerts on new activity. My Places: instant access.")), /*#__PURE__*/React.createElement("div", {
+      }, "Watchlist starts the cron. Tap a Watchlist item to see latest info and choose to save to My Places.")), /*#__PURE__*/React.createElement("div", {
         className: "pt-2"
       }, /*#__PURE__*/React.createElement("p", {
         className: "text-emerald-300 text-base font-bold mb-2"
-      }, "Outbreaks (", outbreaks.length, ")"), outbreaks.length === 0 ? /*#__PURE__*/React.createElement("p", {
-        className: "text-white/70 text-sm italic px-1 py-2"
-      }, "No outbreaks reported here currently. The cron will alert you when one shows up.") : outbreaks.map(function (o) {
+      }, "Outbreaks (", outbreaks.length, ")"), outbreaks.length === 0 ? /*#__PURE__*/React.createElement("div", {
+        className: "px-1 py-2"
+      }, /*#__PURE__*/React.createElement("p", {
+        className: "text-white/70 text-sm italic"
+      }, "No outbreaks reported here currently. The cron will alert you when one shows up."), results.checked_at ? /*#__PURE__*/React.createElement("p", {
+        className: "text-white/45 text-xs italic mt-1"
+      }, "Checked ", fmtRelative(results.checked_at), ".") : null) : outbreaks.map(function (o) {
         const key = 'o:' + o.id;
         const isBusy = savingResultKey === key;
         const cardLoc = o.region || o.location;
@@ -922,9 +920,13 @@ function _arrayWithHoles(r) { if (Array.isArray(r)) return r; }
         className: "pt-2"
       }, /*#__PURE__*/React.createElement("p", {
         className: "text-red-300 text-base font-bold mb-2"
-      }, "Recalls (", visibleRecalls.length, ")"), visibleRecalls.length === 0 ? /*#__PURE__*/React.createElement("p", {
-        className: "text-white/70 text-sm italic px-1 py-2"
-      }, "No recalls reported here currently.") : visibleRecalls.map(function (rc) {
+      }, "Recalls (", visibleRecalls.length, ")"), visibleRecalls.length === 0 ? /*#__PURE__*/React.createElement("div", {
+        className: "px-1 py-2"
+      }, /*#__PURE__*/React.createElement("p", {
+        className: "text-white/70 text-sm italic"
+      }, "No recalls reported here currently."), results.checked_at ? /*#__PURE__*/React.createElement("p", {
+        className: "text-white/45 text-xs italic mt-1"
+      }, "Checked ", fmtRelative(results.checked_at), ".") : null) : visibleRecalls.map(function (rc) {
         const key = 'r:' + rc.id;
         const isBusy = savingResultKey === key;
         // For nationwide recalls, save the searched state (or distribution).
