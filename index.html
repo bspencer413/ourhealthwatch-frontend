@@ -84,7 +84,8 @@ window.addEventListener('unhandledrejection', function(e){
         'reactdom:' + (window.__cdn_reactdom===1 ? 'ok' : window.__cdn_reactdom===0 ? 'FAIL' : '?') + '/' + (hasReactDOM?'global':'NOGLOBAL'),
         'babel:' + (window.__cdn_babel===1 ? 'ok' : window.__cdn_babel===0 ? 'FAIL' : '?') + '/' + (hasBabel?'global':'NOGLOBAL')
       ];
-      window.__ohwBannerSet('CDN STATUS: ' + bits.join(' | '), '#fbbf24');
+      var step = window.__ohwStep || 'NEVER STARTED';
+      window.__ohwBannerSet('STEP: ' + step + ' | ' + bits.join(' | '), '#fbbf24');
     }
   }, 4000);
 </script>
@@ -150,7 +151,9 @@ window.addEventListener('unhandledrejection', function(e){
 <body>
 <div id="root"></div>
 <script type="text/babel">
+window.__ohwStep = 'A: babel script entered';
 const { useState, useEffect } = React;
+window.__ohwStep = 'B: React destructured';
 
 // ── DEBUG: surface any runtime error directly into the page so we can read
 // it on the iPad without DevTools. Remove for v0.1.8 stable.
@@ -1301,8 +1304,10 @@ return (
 );
 }
 
+window.__ohwStep = ‘Y: about to mount’;
 try {
 ReactDOM.render(<App />, document.getElementById(‘root’));
+window.__ohwStep = ‘Z: mount returned’;
 // If we reach here, React mounted — flip the banner green.
 if (window.__ohwBannerSet) window.__ohwBannerSet(‘debug2 · React mounted OK’, ‘#22c55e’);
 } catch (e) {
