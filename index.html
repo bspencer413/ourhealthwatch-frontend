@@ -68,7 +68,22 @@ window.addEventListener('unhandledrejection', function(e){
 <script src="https://unpkg.com/@babel/standalone/babel.min.js" onload="window.__cdn_babel=1" onerror="window.__cdn_babel=0"></script>
 
 <script>
-  // After 4s, if React still hasn't mounted, surface CDN load status so we can see what failed.
+  // Manual Babel kick — auto-scan apparently isn't firing in some browsers.
+  // Run after CDN babel.min.js has had time to attach itself.
+  (function pollAndKick(tries) {
+    if (typeof Babel !== 'undefined' && typeof Babel.transformScriptTags === 'function') {
+      try {
+        Babel.transformScriptTags();
+        if (window.__ohwBannerSet) window.__ohwBannerSet('Babel manually triggered, transforming...', '#3b82f6');
+      } catch (e) {
+        if (window.__ohwBannerSet) window.__ohwBannerSet('Babel manual trigger threw: ' + e.message, '#dc2626');
+      }
+      return;
+    }
+    if (tries < 30) setTimeout(function(){ pollAndKick(tries+1); }, 200);
+  })(0);
+
+  // After 6s, if React still hasn't mounted, surface diagnostics so we can see what failed.
   setTimeout(function(){
     if (window.__ohwBannerSet) {
       var hasReact = (typeof React !== 'undefined');
@@ -87,7 +102,7 @@ window.addEventListener('unhandledrejection', function(e){
       var step = window.__ohwStep || 'NEVER STARTED';
       window.__ohwBannerSet('STEP: ' + step + ' | ' + bits.join(' | '), '#fbbf24');
     }
-  }, 4000);
+  }, 6000);
 </script>
 
 <style>
