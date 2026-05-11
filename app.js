@@ -40,6 +40,18 @@ function _arrayWithHoles(r) { if (Array.isArray(r)) return r; }
   // v0.1.7: same 12-region taxonomy as Cruise Ship Watch / EarthWatch.
   const OH_REGIONS = ['Africa', 'Alaska', 'Arctic', 'Asia', 'Caribbean', 'Central America', 'Mediterranean', 'Middle East', 'North America', 'Northern Europe', 'Oceania', 'South America'];
 
+  // 50 states + DC. Used to suppress nationwide FDA recalls on state searches
+  // (recalls don't filter by state, so they're noise when the user searches Hawaii).
+  const US_STATES = ['Alabama', 'Alaska', 'Arizona', 'Arkansas', 'California', 'Colorado', 'Connecticut', 'Delaware', 'District of Columbia', 'Florida', 'Georgia', 'Hawaii', 'Idaho', 'Illinois', 'Indiana', 'Iowa', 'Kansas', 'Kentucky', 'Louisiana', 'Maine', 'Maryland', 'Massachusetts', 'Michigan', 'Minnesota', 'Mississippi', 'Missouri', 'Montana', 'Nebraska', 'Nevada', 'New Hampshire', 'New Jersey', 'New Mexico', 'New York', 'North Carolina', 'North Dakota', 'Ohio', 'Oklahoma', 'Oregon', 'Pennsylvania', 'Rhode Island', 'South Carolina', 'South Dakota', 'Tennessee', 'Texas', 'Utah', 'Vermont', 'Virginia', 'Washington', 'West Virginia', 'Wisconsin', 'Wyoming'];
+  function isUSState(s) {
+    if (!s) return false;
+    const needle = String(s).trim().toLowerCase();
+    for (let i = 0; i < US_STATES.length; i++) {
+      if (US_STATES[i].toLowerCase() === needle) return true;
+    }
+    return false;
+  }
+
   // -- HELPERS -------------------------------------------------------------------
   function getToken() {
     try {
@@ -572,10 +584,10 @@ function _arrayWithHoles(r) { if (Array.isArray(r)) return r; }
       _useState40 = _slicedToArray(_useState39, 2),
       results = _useState40[0],
       setResults = _useState40[1]; // null | { outbreaks, recalls, query }
-    const _useState41 = useState(false),
+    const _useState41 = useState(''),
       _useState42 = _slicedToArray(_useState41, 2),
       savingTop = _useState42[0],
-      setSavingTop = _useState42[1];
+      setSavingTop = _useState42[1]; // '' | 'wl' | 'mp'
     const _useState43 = useState(''),
       _useState44 = _slicedToArray(_useState43, 2),
       savingResultKey = _useState44[0],
@@ -637,16 +649,17 @@ function _arrayWithHoles(r) { if (Array.isArray(r)) return r; }
       });
     }
 
-    // Save the searched location to Watchlist (top-level button after results).
-    function saveSearchToWatchlist() {
+    // Save the searched location. toMyPlaces=true sets in_my_places, else Watchlist.
+    function saveSearchToPlaces(toMyPlaces) {
       if (savingTop) return;
-      setSavingTop(true);
+      setSavingTop(toMyPlaces ? 'mp' : 'wl');
       setMsg('');
       setMsgKind('');
       const body = {
         region: region || null,
         state: (state || '').trim() || null,
-        city: (city || '').trim() || null
+        city: (city || '').trim() || null,
+        in_my_places: !!toMyPlaces
       };
       fetch(API_BASE + '/places', {
         method: 'POST',
@@ -660,38 +673,41 @@ function _arrayWithHoles(r) { if (Array.isArray(r)) return r; }
           };
         });
       }).then(function (res) {
-        setSavingTop(false);
+        setSavingTop('');
         if (!res.ok) {
           setMsg(res.d.detail || 'Could not save');
           setMsgKind('err');
           return;
         }
         const name = res.d.name || [city, state, region].filter(Boolean).join(', ');
-        setMsg('Added "' + name + '" to your Watchlist.');
+        const where = toMyPlaces ? 'My Places' : 'Watchlist';
+        setMsg('Added "' + name + '" to ' + where + '.');
         setMsgKind('ok');
         if (props.onPlaceAdded) props.onPlaceAdded();
-        // Reset to fresh state so user knows the save took effect.
         setResults(null);
         setRegion('');
         setStateVal('');
         setCity('');
       }).catch(function () {
-        setSavingTop(false);
+        setSavingTop('');
         setMsg('Network error');
         setMsgKind('err');
       });
     }
 
-    // Per-outbreak quick-add. Saves a place using the outbreak's location.
-    function saveOutbreakLocation(o) {
-      const key = 'o:' + o.id;
+    // Per-card add. Saves the card's specific location to Watchlist (cron monitors).
+    // For outbreaks: card.region holds state (NORS) or country (WHO).
+    // For recalls: card.distribution can be a state string. Caller passes both fields.
+    function saveCardLocation(key, locState, fallbackName) {
       if (savingResultKey) return;
       setSavingResultKey(key);
-      // Outbreak region holds the state (NORS) or country (WHO DON).
+      setMsg('');
+      setMsgKind('');
       const body = {
         region: null,
-        state: o.region || o.location || null,
-        city: null
+        state: locState || null,
+        city: null,
+        in_my_places: false
       };
       fetch(API_BASE + '/places', {
         method: 'POST',
@@ -711,7 +727,7 @@ function _arrayWithHoles(r) { if (Array.isArray(r)) return r; }
           setMsgKind('err');
           return;
         }
-        const name = res.d.name || o.region || o.location || 'location';
+        const name = res.d.name || locState || fallbackName || 'location';
         setMsg('Added "' + name + '" to your Watchlist.');
         setMsgKind('ok');
         if (props.onPlaceAdded) props.onPlaceAdded();
@@ -850,48 +866,81 @@ function _arrayWithHoles(r) { if (Array.isArray(r)) return r; }
         setView('outbreaks');
       },
       className: "w-full py-3 rounded-xl bg-emerald-700 hover:bg-emerald-600 text-white text-base font-semibold"
-    }, "Browse Latest Outbreaks"))), results ? /*#__PURE__*/React.createElement("div", {
-      className: "card-mw rounded-2xl p-5 mt-4 space-y-3"
-    }, /*#__PURE__*/React.createElement("div", {
-      className: "flex items-center justify-between gap-2"
-    }, /*#__PURE__*/React.createElement("h3", {
-      className: "text-white text-xl font-bold"
-    }, "Results (", totalResults, ")"), /*#__PURE__*/React.createElement("button", {
-      onClick: searchAgain,
-      className: "text-blue-300 text-sm underline"
-    }, "Search again")), /*#__PURE__*/React.createElement("p", {
-      className: "text-white/70 text-sm italic"
-    }, totalResults === 0 ? 'Nothing currently reported for that location.' : outbreaks.length + ' outbreak' + (outbreaks.length === 1 ? '' : 's') + ' . ' + recalls.length + ' recall' + (recalls.length === 1 ? '' : 's')), /*#__PURE__*/React.createElement("button", {
-      onClick: saveSearchToWatchlist,
-      disabled: savingTop,
-      className: "w-full py-3 rounded-xl bg-white text-gray-900 text-lg font-bold disabled:opacity-50"
-    }, savingTop ? '...' : '+ Add to Watchlist'), outbreaks.length > 0 ? /*#__PURE__*/React.createElement("div", {
-      className: "pt-2"
-    }, /*#__PURE__*/React.createElement("p", {
-      className: "text-emerald-300 text-base font-bold mb-2"
-    }, "Outbreaks"), outbreaks.map(function (o) {
-      const key = 'o:' + o.id;
-      const isBusy = savingResultKey === key;
-      return /*#__PURE__*/React.createElement(OutbreakCard, {
-        key: o.id,
-        outbreak: o
-      }, o.region || o.location ? /*#__PURE__*/React.createElement("button", {
+    }, "Browse Latest Outbreaks"))), results ? function () {
+      const hideRecalls = isUSState(state);
+      const visibleRecalls = hideRecalls ? [] : recalls;
+      return /*#__PURE__*/React.createElement("div", {
+        className: "card-mw rounded-2xl p-5 mt-4 space-y-3"
+      }, /*#__PURE__*/React.createElement("div", {
+        className: "flex items-center justify-between gap-2"
+      }, /*#__PURE__*/React.createElement("h3", {
+        className: "text-white text-xl font-bold"
+      }, "Results for \"", state.trim(), "\""), /*#__PURE__*/React.createElement("button", {
+        onClick: searchAgain,
+        className: "text-blue-300 text-sm underline"
+      }, "Search again")), /*#__PURE__*/React.createElement("div", {
+        className: "space-y-2 pb-2 border-b border-white/15"
+      }, /*#__PURE__*/React.createElement("button", {
         onClick: function () {
-          saveOutbreakLocation(o);
+          saveSearchToPlaces(false);
         },
-        disabled: isBusy || !!savingResultKey,
-        className: "mt-2 px-3 py-1 text-xs rounded bg-white/15 border border-white/30 text-white font-bold hover:bg-white/25 disabled:opacity-50"
-      }, isBusy ? '...' : '+ Add to Watchlist') : null);
-    })) : null, recalls.length > 0 ? /*#__PURE__*/React.createElement("div", {
-      className: "pt-2"
-    }, /*#__PURE__*/React.createElement("p", {
-      className: "text-red-300 text-base font-bold mb-2"
-    }, "Recalls"), recalls.map(function (r) {
-      return /*#__PURE__*/React.createElement(RecallCard, {
-        key: r.id,
-        recall: r
-      });
-    })) : null) : null, /*#__PURE__*/React.createElement("p", {
+        disabled: !!savingTop,
+        className: "w-full py-3 rounded-xl bg-white text-gray-900 text-lg font-bold disabled:opacity-50"
+      }, savingTop === 'wl' ? '...' : '+ Add to Watchlist'), /*#__PURE__*/React.createElement("button", {
+        onClick: function () {
+          saveSearchToPlaces(true);
+        },
+        disabled: !!savingTop,
+        className: "w-full py-3 rounded-xl bg-amber-700 hover:bg-amber-600 text-white text-lg font-bold border border-amber-500 disabled:opacity-50"
+      }, savingTop === 'mp' ? '...' : '* Save to My Places'), /*#__PURE__*/React.createElement("p", {
+        className: "text-white/55 text-xs italic text-center px-1"
+      }, "Watchlist: cron alerts on new activity. My Places: instant access.")), /*#__PURE__*/React.createElement("div", {
+        className: "pt-2"
+      }, /*#__PURE__*/React.createElement("p", {
+        className: "text-emerald-300 text-base font-bold mb-2"
+      }, "Outbreaks (", outbreaks.length, ")"), outbreaks.length === 0 ? /*#__PURE__*/React.createElement("p", {
+        className: "text-white/70 text-sm italic px-1 py-2"
+      }, "No outbreaks reported here currently. The cron will alert you when one shows up.") : outbreaks.map(function (o) {
+        const key = 'o:' + o.id;
+        const isBusy = savingResultKey === key;
+        const cardLoc = o.region || o.location;
+        return /*#__PURE__*/React.createElement(OutbreakCard, {
+          key: o.id,
+          outbreak: o
+        }, cardLoc ? /*#__PURE__*/React.createElement("button", {
+          onClick: function () {
+            saveCardLocation(key, cardLoc, cardLoc);
+          },
+          disabled: isBusy || !!savingResultKey,
+          className: "mt-2 px-3 py-1 text-xs rounded bg-white/15 border border-white/30 text-white font-bold hover:bg-white/25 disabled:opacity-50"
+        }, isBusy ? '...' : '+ Add to Watchlist') : null);
+      })), hideRecalls ? /*#__PURE__*/React.createElement("div", {
+        className: "pt-2 border-t border-white/15"
+      }, /*#__PURE__*/React.createElement("p", {
+        className: "text-white/55 text-xs italic px-1"
+      }, "FDA recalls aren't shown for state searches -- they're nationwide and apply to every state. Search by country to see them.")) : /*#__PURE__*/React.createElement("div", {
+        className: "pt-2"
+      }, /*#__PURE__*/React.createElement("p", {
+        className: "text-red-300 text-base font-bold mb-2"
+      }, "Recalls (", visibleRecalls.length, ")"), visibleRecalls.length === 0 ? /*#__PURE__*/React.createElement("p", {
+        className: "text-white/70 text-sm italic px-1 py-2"
+      }, "No recalls reported here currently.") : visibleRecalls.map(function (rc) {
+        const key = 'r:' + rc.id;
+        const isBusy = savingResultKey === key;
+        // For nationwide recalls, save the searched state (or distribution).
+        const cardLoc = rc.distribution && rc.distribution.toLowerCase().indexOf('nationwide') !== 0 ? rc.distribution : state.trim() || null;
+        return /*#__PURE__*/React.createElement(RecallCard, {
+          key: rc.id,
+          recall: rc
+        }, cardLoc ? /*#__PURE__*/React.createElement("button", {
+          onClick: function () {
+            saveCardLocation(key, cardLoc, cardLoc);
+          },
+          disabled: isBusy || !!savingResultKey,
+          className: "mt-2 px-3 py-1 text-xs rounded bg-white/15 border border-white/30 text-white font-bold hover:bg-white/25 disabled:opacity-50"
+        }, isBusy ? '...' : '+ Add to Watchlist') : null);
+      })));
+    }() : null, /*#__PURE__*/React.createElement("p", {
       className: "text-white/40 text-xs text-center px-6 italic mt-4"
     }, "FDA . CDC . WHO. Based on publicly available sources.")));
   }
