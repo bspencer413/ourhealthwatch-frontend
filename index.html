@@ -83,7 +83,7 @@ const { useState, useEffect } = React;
 
 // ── CONFIG ────────────────────────────────────────────────────────────────────
 const API_BASE = 'https://ourhealthwatch-backend.onrender.com';
-const APP_VERSION = '0.1.5';
+const APP_VERSION = '0.1.6';
 const TOKEN_KEY = 'oh_token';
 const USER_KEY = 'oh_user';
 
@@ -645,7 +645,6 @@ function ItemDrawer(props) {
   const [busy, setBusy] = useState(true);
   const [matchResult, setMatchResult] = useState(null);
   const [lastChecked, setLastChecked] = useState(item.last_checked || null);
-  const [saved, setSaved] = useState(false);
 
   function refresh() {
     setBusy(true);
@@ -670,7 +669,7 @@ function ItemDrawer(props) {
   // Auto-fire the recheck the moment the drawer opens — "tap = instant search result"
   useEffect(function(){ refresh(); }, []);
 
-  // Copy this item to the opposite list (Watchlist <-> Saved). Original stays put.
+  // Copy this item to the Saved list. Original stays put. MW pattern: close drawer on success.
   function copyTo(monitoring) {
     setBusy(true);
     const body = {
@@ -689,8 +688,8 @@ function ItemDrawer(props) {
     })
       .then(function() {
         setBusy(false);
-        setSaved(true);
         if (props.onChanged) props.onChanged();
+        props.onClose();
       })
       .catch(function() { setBusy(false); });
   }
@@ -709,10 +708,6 @@ function ItemDrawer(props) {
       })
       .catch(function() { setBusy(false); });
   }
-
-  const isOutbreakItem = (item.kind === 'outbreak') ||
-    (item.category && (item.category.indexOf('cdc_') === 0 || item.category.indexOf('who_') === 0));
-  const itemOnWatchlist = item.monitoring;
 
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center drawer-backdrop"
@@ -770,22 +765,10 @@ function ItemDrawer(props) {
         ) : null}
 
         <div className="flex flex-wrap gap-2 mt-4">
-          {itemOnWatchlist && !saved ? (
+          {item.monitoring ? (
             <button onClick={function(){ copyTo(false); }} disabled={busy}
               className="flex-1 py-4 text-xl rounded-xl bg-white/15 text-white font-bold border border-white/30 hover:bg-white/20 disabled:opacity-50">
-              {isOutbreakItem ? 'Save to Saved Outbreaks' : 'Save to Saved Recalls'}
-            </button>
-          ) : null}
-          {!itemOnWatchlist && !saved ? (
-            <button onClick={function(){ copyTo(true); }} disabled={busy}
-              className="flex-1 py-4 text-xl rounded-xl bg-blue-700 text-white font-bold border border-blue-500 hover:bg-blue-600 disabled:opacity-50">
-              Move to Watchlist
-            </button>
-          ) : null}
-          {saved ? (
-            <button disabled
-              className="flex-1 py-4 text-xl rounded-xl bg-green-700 text-white font-bold border border-green-500">
-              ✓ Saved
+              Save to Saved
             </button>
           ) : null}
           <button onClick={remove} disabled={busy}
