@@ -908,22 +908,33 @@ function _arrayWithHoles(r) { if (Array.isArray(r)) return r; }
         recall: r
       });
     })) : null), /*#__PURE__*/React.createElement("div", {
-      className: "flex flex-wrap gap-2 mt-4"
+      className: "space-y-2 mt-4"
     }, /*#__PURE__*/React.createElement("button", {
       onClick: toggleMyPlaces,
       disabled: actionBusy,
-      className: "flex-1 py-4 text-xl rounded-xl bg-amber-700 hover:bg-amber-600 text-white font-bold border border-amber-500 disabled:opacity-50"
-    }, place.in_my_places ? 'Remove from My Places' : '* Save to My Places'), /*#__PURE__*/React.createElement("button", {
+      className: "w-full py-4 text-xl rounded-xl bg-amber-700 hover:bg-amber-600 text-white font-bold border border-amber-500 disabled:opacity-50"
+    }, place.in_my_places ? 'Remove from My Places' : '* Save to My Places'), /*#__PURE__*/React.createElement("div", {
+      className: "flex gap-2"
+    }, /*#__PURE__*/React.createElement("button", {
+      onClick: function () {
+        props.onClose();
+        if (props.onBackToSearch) props.onBackToSearch();
+      },
+      disabled: actionBusy,
+      className: "flex-1 py-3 text-base rounded-xl bg-white/15 text-white font-bold border border-white/30 hover:bg-white/20 disabled:opacity-50"
+    }, "\u2190 Back to Search"), /*#__PURE__*/React.createElement("button", {
       onClick: remove,
       disabled: actionBusy,
-      className: "flex-1 py-4 text-xl rounded-xl bg-red-900/60 text-white font-bold border border-red-600 hover:bg-red-800/70 disabled:opacity-50"
-    }, "\uD83D\uDDD1 Remove"))));
+      className: "flex-1 py-3 text-base rounded-xl bg-red-900/60 text-white font-bold border border-red-600 hover:bg-red-800/70 disabled:opacity-50"
+    }, "\uD83D\uDDD1 Remove")))));
   }
 
   // -- WATCHLIST PAGE (renders PLACES, not recall items) -------------------------
   function WatchlistPage(props) {
-    // All places on the Watchlist (regardless of in_my_places state).
-    const places = props.places || [];
+    // Places that haven't been saved to My Places yet -- saving moves them out of here.
+    const places = (props.places || []).filter(function (p) {
+      return !p.in_my_places;
+    });
     return /*#__PURE__*/React.createElement("div", {
       className: "px-3 pb-32",
       style: {
@@ -1331,7 +1342,10 @@ function _arrayWithHoles(r) { if (Array.isArray(r)) return r; }
       onClose: function () {
         setDrawerPlace(null);
       },
-      onChanged: handleChanged
+      onChanged: handleChanged,
+      onBackToSearch: function () {
+        setPage('search');
+      }
     }) : null);
   }
   window.__ohwStep = 'Y: about to mount';
