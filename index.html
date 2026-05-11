@@ -59,13 +59,35 @@ window.addEventListener('unhandledrejection', function(e){
 })();
 </script>
 
-<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.tailwindcss.com" onload="window.__cdn_tailwind=1" onerror="window.__cdn_tailwind=0"></script>
 
-<script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script src="https://unpkg.com/react@18/umd/react.production.min.js" onload="window.__cdn_react=1" onerror="window.__cdn_react=0"></script>
 
-<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" onload="window.__cdn_reactdom=1" onerror="window.__cdn_reactdom=0"></script>
 
-<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js" onload="window.__cdn_babel=1" onerror="window.__cdn_babel=0"></script>
+
+<script>
+  // After 4s, if React still hasn't mounted, surface CDN load status so we can see what failed.
+  setTimeout(function(){
+    if (window.__ohwBannerSet) {
+      var hasReact = (typeof React !== 'undefined');
+      var hasReactDOM = (typeof ReactDOM !== 'undefined');
+      var hasBabel = (typeof Babel !== 'undefined');
+      var hasTw = (typeof tailwind !== 'undefined');
+      // If React mounted already, leave the green banner alone.
+      var b = document.getElementById('debug-banner');
+      if (b && b.textContent.indexOf('mounted OK') !== -1) return;
+      var bits = [
+        'tailwind:' + (window.__cdn_tailwind===1 ? 'ok' : window.__cdn_tailwind===0 ? 'FAIL' : '?'),
+        'react:' + (window.__cdn_react===1 ? 'ok' : window.__cdn_react===0 ? 'FAIL' : '?') + '/' + (hasReact?'global':'NOGLOBAL'),
+        'reactdom:' + (window.__cdn_reactdom===1 ? 'ok' : window.__cdn_reactdom===0 ? 'FAIL' : '?') + '/' + (hasReactDOM?'global':'NOGLOBAL'),
+        'babel:' + (window.__cdn_babel===1 ? 'ok' : window.__cdn_babel===0 ? 'FAIL' : '?') + '/' + (hasBabel?'global':'NOGLOBAL')
+      ];
+      window.__ohwBannerSet('CDN STATUS: ' + bits.join(' | '), '#fbbf24');
+    }
+  }, 4000);
+</script>
 
 <style>
   * { -webkit-tap-highlight-color: transparent; font-family: Georgia, 'Times New Roman', serif; box-sizing: border-box; }
