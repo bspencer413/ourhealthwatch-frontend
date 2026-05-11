@@ -1,4 +1,5 @@
 <!DOCTYPE html>
+
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -80,6 +81,33 @@
 <div id="root"></div>
 <script type="text/babel">
 const { useState, useEffect } = React;
+
+// ── DEBUG: surface any runtime error directly into the page so we can read
+// it on the iPad without DevTools. Remove for v0.1.8 stable.
+window.addEventListener(‘error’, function(e) {
+try {
+const root = document.getElementById(‘root’);
+if (!root) return;
+const msg = (e.error && e.error.stack) || e.message || ‘Unknown error’;
+root.innerHTML =
+‘<div style="padding:20px;color:#fff;font-family:monospace;font-size:14px;line-height:1.4;background:#7f1d1d;min-height:100vh;white-space:pre-wrap;word-break:break-word;">’ +
+‘<strong>JS error caught:</strong>\n\n’ +
+String(msg).replace(/&/g,’&’).replace(/</g,’<’).replace(/>/g,’>’) +
+‘\n\nFile: ’ + (e.filename || ‘?’) + ‘\nLine: ’ + (e.lineno || ‘?’) + ’ Col: ’ + (e.colno || ‘?’) +
+‘</div>’;
+} catch (ignored) {}
+});
+window.addEventListener(‘unhandledrejection’, function(e) {
+try {
+const root = document.getElementById(‘root’);
+if (!root || root.children.length > 1) return;  // don’t overwrite an already-mounted app
+root.innerHTML =
+‘<div style="padding:20px;color:#fff;font-family:monospace;font-size:14px;background:#7f1d1d;min-height:100vh;white-space:pre-wrap;">’ +
+‘<strong>Unhandled promise rejection:</strong>\n\n’ +
+String((e.reason && e.reason.stack) || e.reason || ‘Unknown’).replace(/</g,’<’) +
+‘</div>’;
+} catch (ignored) {}
+});
 
 // ── CONFIG ────────────────────────────────────────────────────────────────────
 const API_BASE = ‘https://ourhealthwatch-backend.onrender.com’;
@@ -1203,7 +1231,18 @@ return (
 );
 }
 
+try {
 ReactDOM.render(<App />, document.getElementById(‘root’));
+} catch (e) {
+const root = document.getElementById(‘root’);
+if (root) {
+root.innerHTML =
+‘<div style="padding:20px;color:#fff;font-family:monospace;font-size:14px;background:#7f1d1d;min-height:100vh;white-space:pre-wrap;">’ +
+‘<strong>Mount error:</strong>\n\n’ +
+String((e && e.stack) || e).replace(/</g,’<’) +
+‘</div>’;
+}
+}
 </script>
 
 </body>
