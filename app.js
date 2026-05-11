@@ -679,15 +679,18 @@ function _arrayWithHoles(r) { if (Array.isArray(r)) return r; }
           setMsgKind('err');
           return;
         }
-        const name = res.d.name || [city, state, region].filter(Boolean).join(', ');
-        const where = toMyPlaces ? 'My Places' : 'Watchlist';
-        setMsg('Added "' + name + '" to ' + where + '.');
-        setMsgKind('ok');
         if (props.onPlaceAdded) props.onPlaceAdded();
+        // Reset before navigating so when user comes back to Search it's clean
         setResults(null);
         setRegion('');
         setStateVal('');
         setCity('');
+        setMsg('');
+        setMsgKind('');
+        // Auto-route to the destination tab so user sees their new item.
+        if (props.onNavigate) {
+          props.onNavigate(toMyPlaces ? 'myplaces' : 'watchlist');
+        }
       }).catch(function () {
         setSavingTop('');
         setMsg('Network error');
@@ -878,7 +881,9 @@ function _arrayWithHoles(r) { if (Array.isArray(r)) return r; }
       }, "Results for \"", state.trim(), "\""), /*#__PURE__*/React.createElement("button", {
         onClick: searchAgain,
         className: "text-blue-300 text-sm underline"
-      }, "Search again")), /*#__PURE__*/React.createElement("div", {
+      }, "Search again")), /*#__PURE__*/React.createElement("p", {
+        className: "text-white/70 text-xs italic"
+      }, "Checked ", results.checked_at ? fmtRelative(results.checked_at) : 'just now', "."), /*#__PURE__*/React.createElement("div", {
         className: "space-y-2 pb-2 border-b border-white/15"
       }, /*#__PURE__*/React.createElement("button", {
         onClick: function () {
@@ -1518,7 +1523,8 @@ function _arrayWithHoles(r) { if (Array.isArray(r)) return r; }
     return /*#__PURE__*/React.createElement("div", {
       className: "app-bg min-h-screen"
     }, /*#__PURE__*/React.createElement("main", null, page === 'search' && /*#__PURE__*/React.createElement(SearchPage, {
-      onPlaceAdded: handleChanged
+      onPlaceAdded: handleChanged,
+      onNavigate: setPage
     }), page === 'watchlist' && /*#__PURE__*/React.createElement(WatchlistPage, {
       places: places,
       onOpen: setDrawerPlace
