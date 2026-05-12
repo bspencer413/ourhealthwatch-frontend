@@ -624,6 +624,39 @@ function _arrayWithHoles(r) { if (Array.isArray(r)) return r; }
         }
       });
     }
+
+    // EarthWatch-canonical dup-check. Given a prospective place name, returns
+    // null (no dup), or { type: 'watchlist' } / { type: 'myplaces' } depending
+    // on which list the existing same-named place sits in. Used to swap the
+    // "+ Add to Watchlist" button for a static "Already in ..." badge so the
+    // user can't double-save. Single place row in DB; in_my_places flag
+    // distinguishes the two states.
+    function findDup(prospectiveName) {
+      if (!prospectiveName) return null;
+      const target = prospectiveName.toLowerCase().trim();
+      if (!target) return null;
+      const list = props.places || [];
+      for (let i = 0; i < list.length; i++) {
+        const p = list[i];
+        if (p && p.name && p.name.toLowerCase().trim() === target) {
+          return {
+            type: p.in_my_places ? 'myplaces' : 'watchlist'
+          };
+        }
+      }
+      return null;
+    }
+
+    // Mirror backend's _derive_place_name() so the prospective name we compare
+    // against existing places matches what the backend would actually store.
+    // Prefer city, then state, then region. Same join order.
+    function deriveProspectiveName() {
+      const parts = [];
+      if (city && city.trim()) parts.push(city.trim());
+      if (state && state.trim()) parts.push(state.trim());
+      if (parts.length === 0 && region && region.trim()) parts.push(region.trim());
+      return parts.join(', ');
+    }
     function submitSearch() {
       setMsg('');
       setMsgKind('');
@@ -906,13 +939,21 @@ function _arrayWithHoles(r) { if (Array.isArray(r)) return r; }
         timeStyle: 'short'
       }) : 'just now'), /*#__PURE__*/React.createElement("div", {
         className: "space-y-2 pb-2 border-b border-white/15"
-      }, /*#__PURE__*/React.createElement("button", {
-        onClick: function () {
-          saveSearchToPlaces(false);
-        },
-        disabled: !!savingTop,
-        className: "w-full py-3 rounded-xl bg-white text-gray-900 text-lg font-bold disabled:opacity-50"
-      }, savingTop === 'wl' ? '...' : '+ Add to Watchlist'), /*#__PURE__*/React.createElement("p", {
+      }, function () {
+        const topDup = findDup(deriveProspectiveName());
+        if (topDup) {
+          return /*#__PURE__*/React.createElement("div", {
+            className: "w-full py-3 rounded-xl bg-white/15 border border-white/30 text-white text-lg font-bold text-center"
+          }, topDup.type === 'myplaces' ? '\u2605 Already in My Places' : '\u2713 Already in Watchlist');
+        }
+        return /*#__PURE__*/React.createElement("button", {
+          onClick: function () {
+            saveSearchToPlaces(false);
+          },
+          disabled: !!savingTop,
+          className: "w-full py-3 rounded-xl bg-white text-gray-900 text-lg font-bold disabled:opacity-50"
+        }, savingTop === 'wl' ? '...' : '+ Add to Watchlist');
+      }(), /*#__PURE__*/React.createElement("p", {
         className: "text-white/55 text-xs italic text-center px-1"
       }, "Watchlist starts the cron. Tap a Watchlist item to see latest info and choose to save to My Places.")), /*#__PURE__*/React.createElement("div", {
         className: "pt-2"
@@ -931,10 +972,13 @@ function _arrayWithHoles(r) { if (Array.isArray(r)) return r; }
         const key = 'o:' + o.id;
         const isBusy = savingResultKey === key;
         const cardLoc = o.region || o.location;
+        const cardDup = findDup(cardLoc);
         return /*#__PURE__*/React.createElement(OutbreakCard, {
           key: o.id,
           outbreak: o
-        }, cardLoc ? /*#__PURE__*/React.createElement("button", {
+        }, cardLoc ? cardDup ? /*#__PURE__*/React.createElement("div", {
+          className: "mt-2 px-3 py-1 text-xs rounded bg-white/10 border border-white/25 text-white/85 font-bold text-center"
+        }, cardDup.type === 'myplaces' ? '\u2605 Already in My Places' : '\u2713 Already in Watchlist') : /*#__PURE__*/React.createElement("button", {
           onClick: function () {
             saveCardLocation(key, cardLoc, cardLoc);
           },
@@ -963,10 +1007,13 @@ function _arrayWithHoles(r) { if (Array.isArray(r)) return r; }
         const isBusy = savingResultKey === key;
         // For nationwide recalls, save the searched state (or distribution).
         const cardLoc = rc.distribution && rc.distribution.toLowerCase().indexOf('nationwide') !== 0 ? rc.distribution : state.trim() || null;
+        const cardDup = findDup(cardLoc);
         return /*#__PURE__*/React.createElement(RecallCard, {
           key: rc.id,
           recall: rc
-        }, cardLoc ? /*#__PURE__*/React.createElement("button", {
+        }, cardLoc ? cardDup ? /*#__PURE__*/React.createElement("div", {
+          className: "mt-2 px-3 py-1 text-xs rounded bg-white/10 border border-white/25 text-white/85 font-bold text-center"
+        }, cardDup.type === 'myplaces' ? '\u2605 Already in My Places' : '\u2713 Already in Watchlist') : /*#__PURE__*/React.createElement("button", {
           onClick: function () {
             saveCardLocation(key, cardLoc, cardLoc);
           },
@@ -1654,6 +1701,7 @@ function _arrayWithHoles(r) { if (Array.isArray(r)) return r; }
     return /*#__PURE__*/React.createElement("div", {
       className: "app-bg min-h-screen"
     }, /*#__PURE__*/React.createElement("main", null, page === 'search' && /*#__PURE__*/React.createElement(SearchPage, {
+      places: places,
       onPlaceAdded: handleChanged,
       onNavigate: setPage
     }), page === 'watchlist' && /*#__PURE__*/React.createElement(WatchlistPage, {
