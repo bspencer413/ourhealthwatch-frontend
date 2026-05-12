@@ -33,7 +33,7 @@ function _arrayWithHoles(r) { if (Array.isArray(r)) return r; }
 
   // -- CONFIG --------------------------------------------------------------------
   const API_BASE = 'https://ourhealthwatch-backend.onrender.com';
-  const APP_VERSION = '0.1.23';
+  const APP_VERSION = '0.1.24';
   const TOKEN_KEY = 'oh_token';
   const USER_KEY = 'oh_user';
 
@@ -934,7 +934,7 @@ function _arrayWithHoles(r) { if (Array.isArray(r)) return r; }
         className: "flex items-center justify-between gap-2"
       }, /*#__PURE__*/React.createElement("h3", {
         className: "text-white text-xl font-bold"
-      }, "Results for \"", state.trim(), "\""), /*#__PURE__*/React.createElement("button", {
+      }, "Results for \"", state.trim() || region.trim() || "your area", "\""), /*#__PURE__*/React.createElement("button", {
         onClick: searchAgain,
         className: "text-blue-300 text-sm underline"
       }, "Search again")), /*#__PURE__*/React.createElement("p", {
