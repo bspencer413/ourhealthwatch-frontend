@@ -16,44 +16,32 @@
 <meta property="og:description" content="Drug recalls, device recalls, and outbreak alerts for places you care about.">
 <meta property="og:url" content="https://ourhealth.watch">
 <meta property="og:type" content="website">
-<!-- DEBUG v0.1.7-debug2: plain JS, runs before Babel/React so we always see something -->
+<!-- Production crash-screen handlers — paint the page red on JS error or
+     unhandled promise rejection so production failures are visible rather
+     than silent. Replaces the v0.1.7 debug banner mechanism. -->
 <script>
   (function(){
-    // Visible version marker -- if you see this banner, the new file IS deployed.
-    function showBanner(text, color) {
-      var b = document.getElementById('debug-banner') || document.createElement('div');
-      b.id = 'debug-banner';
-      b.style.cssText = 'position:fixed;top:0;left:0;right:0;background:'+color+';color:#000;padding:8px 12px;font-family:monospace;font-size:13px;z-index:99999;text-align:center;font-weight:bold;';
-      b.textContent = text;
-      if (!b.parentNode && document.body) document.body.appendChild(b);
-      else if (!b.parentNode) document.addEventListener('DOMContentLoaded', function(){ document.body.appendChild(b); });
-    }
-    showBanner('debug7-extdiag . waiting for React...', '#facc15');
-    window.__ohwBannerSet = showBanner;
-
-window.addEventListener('error', function(e){
-  var root = document.getElementById('root');
-  if (root) {
-    root.innerHTML = '<div style="padding:60px 20px 20px;color:#fff;font-family:monospace;font-size:14px;background:#7f1d1d;min-height:100vh;white-space:pre-wrap;word-break:break-word;">' +
-      '<strong>JS ERROR</strong>\n\n' +
-      String(e.message || '?').replace(/</g,'&lt;') +
-      '\n\nFile: ' + (e.filename || '?') +
-      '\nLine: ' + (e.lineno || '?') + '  Col: ' + (e.colno || '?') +
-      (e.error && e.error.stack ? '\n\nStack:\n' + String(e.error.stack).replace(/</g,'&lt;') : '') +
-      '</div>';
-  }
-  showBanner('debug2 caught JS error', '#dc2626');
-});
-window.addEventListener('unhandledrejection', function(e){
-  var root = document.getElementById('root');
-  if (root && root.children.length <= 1) {
-    root.innerHTML = '<div style="padding:60px 20px 20px;color:#fff;font-family:monospace;font-size:14px;background:#7f1d1d;min-height:100vh;white-space:pre-wrap;">' +
-      '<strong>PROMISE REJECTED</strong>\n\n' +
-      String((e.reason && e.reason.stack) || e.reason || 'Unknown').replace(/</g,'&lt;') +
-      '</div>';
-  }
-});
-
+    window.addEventListener('error', function(e){
+      var root = document.getElementById('root');
+      if (root) {
+        root.innerHTML = '<div style="padding:60px 20px 20px;color:#fff;font-family:monospace;font-size:14px;background:#7f1d1d;min-height:100vh;white-space:pre-wrap;word-break:break-word;">' +
+          '<strong>JS ERROR</strong>\n\n' +
+          String(e.message || '?').replace(/</g,'&lt;') +
+          '\n\nFile: ' + (e.filename || '?') +
+          '\nLine: ' + (e.lineno || '?') + '  Col: ' + (e.colno || '?') +
+          (e.error && e.error.stack ? '\n\nStack:\n' + String(e.error.stack).replace(/</g,'&lt;') : '') +
+          '</div>';
+      }
+    });
+    window.addEventListener('unhandledrejection', function(e){
+      var root = document.getElementById('root');
+      if (root && root.children.length <= 1) {
+        root.innerHTML = '<div style="padding:60px 20px 20px;color:#fff;font-family:monospace;font-size:14px;background:#7f1d1d;min-height:100vh;white-space:pre-wrap;">' +
+          '<strong>PROMISE REJECTED</strong>\n\n' +
+          String((e.reason && e.reason.stack) || e.reason || 'Unknown').replace(/</g,'&lt;') +
+          '</div>';
+      }
+    });
   })();
 </script>
 
@@ -62,30 +50,6 @@ window.addEventListener('unhandledrejection', function(e){
 <script src="https://unpkg.com/react@18/umd/react.production.min.js" onload="window.__cdn_react=1" onerror="window.__cdn_react=0"></script>
 
 <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" onload="window.__cdn_reactdom=1" onerror="window.__cdn_reactdom=0"></script>
-
-<script>
-// After 6s, if React still hasn't mounted, surface diagnostics so we can see what failed.
-  setTimeout(function(){
-    if (window.__ohwBannerSet) {
-      var hasReact = (typeof React !== 'undefined');
-      var hasReactDOM = (typeof ReactDOM !== 'undefined');
-      var hasBabel = (typeof Babel !== 'undefined');
-      var hasTw = (typeof tailwind !== 'undefined');
-      // If React mounted already, leave the green banner alone.
-      var b = document.getElementById('debug-banner');
-      if (b && b.textContent.indexOf('mounted OK') !== -1) return;
-      var bits = [
-        'tailwind:' + (window.__cdn_tailwind===1 ? 'ok' : window.__cdn_tailwind===0 ? 'FAIL' : '?'),
-        'react:' + (window.__cdn_react===1 ? 'ok' : window.__cdn_react===0 ? 'FAIL' : '?') + '/' + (hasReact?'global':'NOGLOBAL'),
-        'reactdom:' + (window.__cdn_reactdom===1 ? 'ok' : window.__cdn_reactdom===0 ? 'FAIL' : '?') + '/' + (hasReactDOM?'global':'NOGLOBAL'),
-        'appjs:' + (window.__cdn_appjs===1 ? 'LOADED' : window.__cdn_appjs===0 ? '404/FAIL' : 'NOTLOADED'),
-        'babel:' + (window.__cdn_babel===1 ? 'ok' : window.__cdn_babel===0 ? 'FAIL' : '?') + '/' + (hasBabel?'global':'NOGLOBAL')
-      ];
-      var step = window.__ohwStep || 'NEVER STARTED';
-      window.__ohwBannerSet('STEP: ' + step + ' | ' + bits.join(' | '), '#fbbf24');
-    }
-  }, 6000);
-</script>
 
 <style>
   * { -webkit-tap-highlight-color: transparent; font-family: Georgia, 'Times New Roman', serif; box-sizing: border-box; }
