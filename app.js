@@ -661,8 +661,12 @@ function _arrayWithHoles(r) { if (Array.isArray(r)) return r; }
       setMsg('');
       setMsgKind('');
       const trimmedState = (state || '').trim();
-      if (!trimmedState) {
-        setMsg('State or Country is required.');
+      const trimmedRegion = (region || '').trim();
+      // v0.1.18: state OR region required. Region-only search lights up the
+      // region's country set via the new REGION_TO_COUNTRY_CODES branch on
+      // the backend; state still drives narrower per-state matching.
+      if (!trimmedState && !trimmedRegion) {
+        setMsg('Pick a Region, State, or Country to search.');
         setMsgKind('err');
         return;
       }
@@ -670,8 +674,8 @@ function _arrayWithHoles(r) { if (Array.isArray(r)) return r; }
       setBusy(true);
       setResults(null);
       const body = {
-        region: region || null,
-        state: trimmedState,
+        region: trimmedRegion || null,
+        state: trimmedState || null,
         city: (city || '').trim() || null
       };
       fetch(API_BASE + '/search-events', {
