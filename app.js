@@ -952,33 +952,92 @@ function _arrayWithHoles(r) { if (Array.isArray(r)) return r; }
     }, "FDA . CDC . WHO. Based on publicly available sources.")));
   }
 
-  // -- PLACE CARD (row in Watchlist / My Places list) ----------------------------
-  function PlaceCard(props) {
+  // -- WATCHLIST TILE -- active monitoring view (emerald theme) -------------------
+  // Used in WatchlistPage. Shows every place the cron monitors. Tap name to open
+  // drawer for an instant check. Trash icon removes the place entirely (which
+  // also removes it from My Places).
+  function WatchlistTile(props) {
     const p = props.place;
     const parts = [p.city, p.state, p.region].filter(Boolean);
-    const subtitle = parts.length ? parts.join(' . ') : p.name || '';
-    return /*#__PURE__*/React.createElement("button", {
+    const subtitle = parts.length ? parts.join(' . ') : '';
+    function handleRemove(e) {
+      e.stopPropagation();
+      if (!confirm('Remove "' + (p.name || 'this place') + '" from your Watchlist? (This also removes it from My Places.)')) return;
+      if (props.onRemove) props.onRemove(p.id);
+    }
+    return /*#__PURE__*/React.createElement("div", {
+      className: "p-4 rounded-lg border border-emerald-600/40 bg-emerald-900/20 mb-3"
+    }, /*#__PURE__*/React.createElement("div", {
+      className: "flex items-start justify-between gap-2"
+    }, /*#__PURE__*/React.createElement("button", {
       onClick: function () {
         props.onOpen(p);
       },
-      className: "w-full text-left card-recall rounded-lg p-4 mb-3 hover:bg-gray-700/40"
+      className: "flex-1 min-w-0 text-left"
+    }, /*#__PURE__*/React.createElement("h3", {
+      className: "font-bold text-white text-xl underline decoration-dotted truncate"
+    }, p.name || 'Place'), subtitle ? /*#__PURE__*/React.createElement("p", {
+      className: "text-white/75 text-base truncate mt-0.5"
+    }, subtitle) : null, /*#__PURE__*/React.createElement("p", {
+      className: "text-emerald-300 text-base font-bold mt-1"
+    }, "\u2713 Watching")), /*#__PURE__*/React.createElement("button", {
+      onClick: handleRemove,
+      className: "p-2 text-white/70 hover:text-white hover:bg-white/10 rounded-lg shrink-0"
+    }, /*#__PURE__*/React.createElement("svg", {
+      className: "w-5 h-5",
+      fill: "none",
+      stroke: "currentColor",
+      viewBox: "0 0 24 24"
+    }, /*#__PURE__*/React.createElement("path", {
+      strokeLinecap: "round",
+      strokeLinejoin: "round",
+      strokeWidth: 2,
+      d: "M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+    })))));
+  }
+
+  // -- MY PLACES TILE -- saved-for-reference view (amber theme) -------------------
+  // Used in MyPlacesPage. Sharper visual break vs WatchlistTile: amber border,
+  // prominent "SAVED" badge. The row stays on the Watchlist too -- the cron
+  // monitors both lists from the same row. Trash removes from BOTH lists.
+  function MyPlacesTile(props) {
+    const p = props.place;
+    const parts = [p.city, p.state, p.region].filter(Boolean);
+    const subtitle = parts.length ? parts.join(' . ') : '';
+    function handleRemove(e) {
+      e.stopPropagation();
+      if (!confirm('Remove "' + (p.name || 'this place') + '" entirely? (This removes it from BOTH My Places and Watchlist.)')) return;
+      if (props.onRemove) props.onRemove(p.id);
+    }
+    return /*#__PURE__*/React.createElement("div", {
+      className: "p-4 rounded-lg border-2 border-amber-500/70 bg-amber-900/30 mb-3"
     }, /*#__PURE__*/React.createElement("div", {
       className: "flex items-start justify-between gap-2"
-    }, /*#__PURE__*/React.createElement("div", {
-      className: "flex-1 min-w-0"
-    }, /*#__PURE__*/React.createElement("h3", {
-      className: "font-bold text-white text-xl truncate"
-    }, p.name || 'Place'), subtitle && subtitle !== p.name ? /*#__PURE__*/React.createElement("p", {
-      className: "text-white/70 text-base truncate"
-    }, subtitle) : null, /*#__PURE__*/React.createElement("div", {
-      className: "flex items-center gap-2 mt-1 flex-wrap"
-    }, p.in_my_places ? /*#__PURE__*/React.createElement("span", {
-      className: "text-white text-xs px-2 py-1 rounded font-bold bg-amber-700"
-    }, "\u2605 My Places") : null, /*#__PURE__*/React.createElement("span", {
-      className: "text-white/60 text-xs"
-    }, "Watching \xB7 ", Math.round(p.radius_mi || 50), " mi radius"))), /*#__PURE__*/React.createElement("span", {
-      className: "text-white text-sm"
-    }, "tap to open")));
+    }, /*#__PURE__*/React.createElement("button", {
+      onClick: function () {
+        props.onOpen(p);
+      },
+      className: "flex-1 min-w-0 text-left"
+    }, /*#__PURE__*/React.createElement("p", {
+      className: "text-amber-300 text-sm font-bold uppercase tracking-widest mb-1"
+    }, "* Saved"), /*#__PURE__*/React.createElement("h3", {
+      className: "font-bold text-white text-xl underline decoration-dotted truncate"
+    }, p.name || 'Place'), subtitle ? /*#__PURE__*/React.createElement("p", {
+      className: "text-white/75 text-base truncate mt-0.5"
+    }, subtitle) : null), /*#__PURE__*/React.createElement("button", {
+      onClick: handleRemove,
+      className: "p-2 text-white/70 hover:text-white hover:bg-white/10 rounded-lg shrink-0"
+    }, /*#__PURE__*/React.createElement("svg", {
+      className: "w-5 h-5",
+      fill: "none",
+      stroke: "currentColor",
+      viewBox: "0 0 24 24"
+    }, /*#__PURE__*/React.createElement("path", {
+      strokeLinecap: "round",
+      strokeLinejoin: "round",
+      strokeWidth: 2,
+      d: "M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+    })))));
   }
 
   // -- PLACE DRAWER (v0.1.7: outbreaks + recalls matched to this location) -------
@@ -1000,6 +1059,12 @@ function _arrayWithHoles(r) { if (Array.isArray(r)) return r; }
       _useState52 = _slicedToArray(_useState51, 2),
       actionBusy = _useState52[0],
       setActionBusy = _useState52[1];
+    // Local mirror of in_my_places so we can flip to "Saved" badge instantly
+    // without closing the drawer. Initialized from the place row passed in.
+    const _useState53 = useState(!!place.in_my_places),
+      _useState54 = _slicedToArray(_useState53, 2),
+      savedFlag = _useState54[0],
+      setSavedFlag = _useState54[1];
     function load() {
       setBusy(true);
       setErr('');
@@ -1027,20 +1092,24 @@ function _arrayWithHoles(r) { if (Array.isArray(r)) return r; }
     useEffect(function () {
       load();
     }, []);
-    function toggleMyPlaces() {
-      if (actionBusy) return;
+
+    // Save-only. Per the canonical model (EW v0.1.6+), there is no un-save from
+    // here -- to remove from My Places, the user deletes the place entirely from
+    // the My Places tab (which removes from Watchlist too, since they're the
+    // same row). Drawer stays open and the button is replaced by a "Saved" badge.
+    function saveToMyPlaces() {
+      if (actionBusy || savedFlag) return;
       setActionBusy(true);
-      const newVal = !place.in_my_places;
       fetch(API_BASE + '/places/' + place.id, {
         method: 'PATCH',
         headers: jsonHeaders(),
         body: JSON.stringify({
-          in_my_places: newVal
+          in_my_places: true
         })
       }).then(function () {
         setActionBusy(false);
+        setSavedFlag(true);
         if (props.onChanged) props.onChanged();
-        props.onClose();
       }).catch(function () {
         setActionBusy(false);
       });
@@ -1079,33 +1148,62 @@ function _arrayWithHoles(r) { if (Array.isArray(r)) return r; }
       className: "text-white text-2xl font-bold"
     }, place.name), subtitle ? /*#__PURE__*/React.createElement("p", {
       className: "text-white/70 text-base"
-    }, subtitle) : null, place.in_my_places ? /*#__PURE__*/React.createElement("span", {
+    }, subtitle) : null, savedFlag ? /*#__PURE__*/React.createElement("span", {
       className: "inline-block text-white text-xs px-2 py-1 rounded font-bold mt-2 bg-amber-700"
-    }, "\u2605 Saved to My Places") : null), /*#__PURE__*/React.createElement("button", {
+    }, "* Saved to My Places") : null), /*#__PURE__*/React.createElement("button", {
       onClick: props.onClose,
       className: "text-white hover:text-gray-300 text-3xl leading-none px-2"
     }, "\xD7")), busy ? /*#__PURE__*/React.createElement("p", {
       className: "text-white text-base py-4 text-center"
-    }, "Checking for outbreaks and recalls at this location\u2026") : err ? /*#__PURE__*/React.createElement("p", {
+    }, "Checking for outbreaks at this location...") : err ? /*#__PURE__*/React.createElement("p", {
       className: "text-red-300 text-base py-3"
-    }, err) : /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("p", {
-      className: "text-white/60 text-sm mb-3 italic"
-    }, outbreaks.length === 0 ? 'Nothing active here right now. We\'re watching.' : outbreaks.length + ' outbreak' + (outbreaks.length === 1 ? '' : 's')), outbreaks.length > 0 ? /*#__PURE__*/React.createElement("div", {
+    }, err) : /*#__PURE__*/React.createElement("div", null, outbreaks.length === 0 ? /*#__PURE__*/React.createElement("div", {
+      className: "py-4 text-center"
+    }, /*#__PURE__*/React.createElement("p", {
+      className: "text-3xl mb-2"
+    }, '\u2713'), /*#__PURE__*/React.createElement("p", {
+      className: "text-white text-xl font-bold mb-1"
+    }, "No active outbreaks"), /*#__PURE__*/React.createElement("p", {
+      className: "text-white/70 text-sm mb-2"
+    }, "Watching for new information."), data && data.checked_at ? /*#__PURE__*/React.createElement("p", {
+      className: "text-white/55 text-xs italic"
+    }, "Checked ", new Date(data.checked_at).toLocaleString()) : null) : /*#__PURE__*/React.createElement("div", {
       className: "mb-4"
     }, /*#__PURE__*/React.createElement("p", {
       className: "text-emerald-300 text-lg font-bold mb-2"
-    }, "Outbreaks"), outbreaks.map(function (o) {
+    }, "Outbreaks (", outbreaks.length, ")"), outbreaks.map(function (o) {
       return /*#__PURE__*/React.createElement(OutbreakCard, {
         key: o.id,
         outbreak: o
       });
-    })) : null), /*#__PURE__*/React.createElement("div", {
+    }), data && data.checked_at ? /*#__PURE__*/React.createElement("p", {
+      className: "text-white/55 text-xs italic mt-2 text-center"
+    }, "Checked ", new Date(data.checked_at).toLocaleString()) : null)), /*#__PURE__*/React.createElement("div", {
       className: "space-y-2 mt-4"
-    }, /*#__PURE__*/React.createElement("button", {
-      onClick: toggleMyPlaces,
-      disabled: actionBusy,
-      className: "w-full py-4 text-xl rounded-xl bg-amber-700 hover:bg-amber-600 text-white font-bold border border-amber-500 disabled:opacity-50"
-    }, place.in_my_places ? 'Remove from My Places' : '* Save to My Places'), /*#__PURE__*/React.createElement("div", {
+    }, savedFlag ? /*#__PURE__*/React.createElement("div", {
+      className: "w-full py-4 text-lg rounded-xl bg-amber-900/40 border border-amber-600/50 text-amber-200 font-bold text-center"
+    }, "* Saved to My Places") : function () {
+      // Dup-check: another saved place with the same name (case-insensitive)?
+      var otherPlaces = props.places || [];
+      var dup = false;
+      for (var i = 0; i < otherPlaces.length; i++) {
+        var op = otherPlaces[i];
+        if (op.in_my_places && op.id !== place.id && op.name && place.name && op.name.toLowerCase().trim() === place.name.toLowerCase().trim()) {
+          dup = true;
+          break;
+        }
+      }
+      if (dup) {
+        return /*#__PURE__*/React.createElement("div", {
+          className: "w-full py-3 text-base rounded-xl bg-white/10 border border-white/20 text-white/80 text-center"
+        }, "Already in My Places (same name)");
+      }
+      return /*#__PURE__*/React.createElement("button", {
+        onClick: saveToMyPlaces,
+        disabled: actionBusy,
+        className: "w-full py-4 text-xl rounded-xl bg-amber-700 hover:bg-amber-600 text-white font-bold border border-amber-500 disabled:opacity-50"
+      }, actionBusy ? '...' : '* Save to My Places');
+    }(), /*#__PURE__*/React.createElement("div", {
       className: "flex gap-2"
     }, /*#__PURE__*/React.createElement("button", {
       onClick: function () {
@@ -1114,11 +1212,11 @@ function _arrayWithHoles(r) { if (Array.isArray(r)) return r; }
       },
       disabled: actionBusy,
       className: "flex-1 py-3 text-base rounded-xl bg-white/15 text-white font-bold border border-white/30 hover:bg-white/20 disabled:opacity-50"
-    }, "\u2190 Back to Search"), /*#__PURE__*/React.createElement("button", {
+    }, '\u2190', " Back to Search"), /*#__PURE__*/React.createElement("button", {
       onClick: remove,
       disabled: actionBusy,
       className: "flex-1 py-3 text-base rounded-xl bg-red-900/60 text-white font-bold border border-red-600 hover:bg-red-800/70 disabled:opacity-50"
-    }, "\uD83D\uDDD1 Remove")))));
+    }, "Remove")))));
   }
 
   // -- WATCHLIST PAGE (renders PLACES, not recall items) -------------------------
@@ -1143,10 +1241,11 @@ function _arrayWithHoles(r) { if (Array.isArray(r)) return r; }
     }, places.length === 0 ? /*#__PURE__*/React.createElement("p", {
       className: "text-white text-xl text-center py-6"
     }, "Your Watchlist is empty. Use Search to add a region, state, or city.") : places.map(function (p) {
-      return /*#__PURE__*/React.createElement(PlaceCard, {
+      return /*#__PURE__*/React.createElement(WatchlistTile, {
         key: p.id,
         place: p,
-        onOpen: props.onOpen
+        onOpen: props.onOpen,
+        onRemove: props.onRemove
       });
     })));
   }
@@ -1163,7 +1262,7 @@ function _arrayWithHoles(r) { if (Array.isArray(r)) return r; }
       }
     }, /*#__PURE__*/React.createElement(BackgroundHeader, {
       title: "My Places (" + saved.length + ")",
-      subtitle: "Saved places \u2014 they stay on the Watchlist too"
+      subtitle: "Saved places -- they stay on the Watchlist too"
     }), /*#__PURE__*/React.createElement("div", {
       className: "card-mw rounded-2xl p-5 max-w-2xl mx-auto",
       style: {
@@ -1171,25 +1270,26 @@ function _arrayWithHoles(r) { if (Array.isArray(r)) return r; }
       }
     }, saved.length === 0 ? /*#__PURE__*/React.createElement("p", {
       className: "text-white text-xl text-center py-6"
-    }, "No saved places yet. Open any place from your Watchlist and tap \u2605 Save to My Places.") : saved.map(function (p) {
-      return /*#__PURE__*/React.createElement(PlaceCard, {
+    }, "No saved places yet. Open any place from your Watchlist and tap * Save to My Places.") : saved.map(function (p) {
+      return /*#__PURE__*/React.createElement(MyPlacesTile, {
         key: p.id,
         place: p,
-        onOpen: props.onOpen
+        onOpen: props.onOpen,
+        onRemove: props.onRemove
       });
     })));
   }
 
   // -- ALERTS PAGE ---------------------------------------------------------------
   function AlertsPage(props) {
-    const _useState53 = useState([]),
-      _useState54 = _slicedToArray(_useState53, 2),
-      items = _useState54[0],
-      setItems = _useState54[1];
-    const _useState55 = useState(true),
+    const _useState55 = useState([]),
       _useState56 = _slicedToArray(_useState55, 2),
-      busy = _useState56[0],
-      setBusy = _useState56[1];
+      items = _useState56[0],
+      setItems = _useState56[1];
+    const _useState57 = useState(true),
+      _useState58 = _slicedToArray(_useState57, 2),
+      busy = _useState58[0],
+      setBusy = _useState58[1];
     function load() {
       setBusy(true);
       fetch(API_BASE + '/notifications', {
@@ -1412,30 +1512,30 @@ function _arrayWithHoles(r) { if (Array.isArray(r)) return r; }
 
   // -- APP ROOT ------------------------------------------------------------------
   function App() {
-    const _useState57 = useState(null),
-      _useState58 = _slicedToArray(_useState57, 2),
-      user = _useState58[0],
-      setUser = _useState58[1];
-    const _useState59 = useState('...'),
+    const _useState59 = useState(null),
       _useState60 = _slicedToArray(_useState59, 2),
-      apiVersion = _useState60[0],
-      setApiVersion = _useState60[1];
-    const _useState61 = useState('search'),
+      user = _useState60[0],
+      setUser = _useState60[1];
+    const _useState61 = useState('...'),
       _useState62 = _slicedToArray(_useState61, 2),
-      page = _useState62[0],
-      setPage = _useState62[1];
-    const _useState63 = useState([]),
+      apiVersion = _useState62[0],
+      setApiVersion = _useState62[1];
+    const _useState63 = useState('search'),
       _useState64 = _slicedToArray(_useState63, 2),
-      places = _useState64[0],
-      setPlaces = _useState64[1];
-    const _useState65 = useState(null),
+      page = _useState64[0],
+      setPage = _useState64[1];
+    const _useState65 = useState([]),
       _useState66 = _slicedToArray(_useState65, 2),
-      drawerPlace = _useState66[0],
-      setDrawerPlace = _useState66[1];
-    const _useState67 = useState(0),
+      places = _useState66[0],
+      setPlaces = _useState66[1];
+    const _useState67 = useState(null),
       _useState68 = _slicedToArray(_useState67, 2),
-      alertCount = _useState68[0],
-      setAlertCount = _useState68[1];
+      drawerPlace = _useState68[0],
+      setDrawerPlace = _useState68[1];
+    const _useState69 = useState(0),
+      _useState70 = _slicedToArray(_useState69, 2),
+      alertCount = _useState70[0],
+      setAlertCount = _useState70[1];
 
     // Cold-start: fetch health, hydrate auth.
     useEffect(function () {
@@ -1506,6 +1606,19 @@ function _arrayWithHoles(r) { if (Array.isArray(r)) return r; }
       loadPlaces();
       loadAlertCount();
     }
+
+    // Remove a place entirely. Hits DELETE /places/{id} -- backend cascades to
+    // notifications for that place. UI then reloads so the row disappears from
+    // both Watchlist and My Places (since it was the same row in both views).
+    function removePlace(id) {
+      if (!getToken()) return;
+      fetch(API_BASE + '/places/' + id, {
+        method: 'DELETE',
+        headers: authHeaders()
+      }).then(function () {
+        handleChanged();
+      }).catch(function () {});
+    }
     if (!user) {
       return /*#__PURE__*/React.createElement(LoginScreen, {
         onAuth: handleAuth
@@ -1518,10 +1631,12 @@ function _arrayWithHoles(r) { if (Array.isArray(r)) return r; }
       onNavigate: setPage
     }), page === 'watchlist' && /*#__PURE__*/React.createElement(WatchlistPage, {
       places: places,
-      onOpen: setDrawerPlace
+      onOpen: setDrawerPlace,
+      onRemove: removePlace
     }), page === 'myplaces' && /*#__PURE__*/React.createElement(MyPlacesPage, {
       places: places,
-      onOpen: setDrawerPlace
+      onOpen: setDrawerPlace,
+      onRemove: removePlace
     }), page === 'info' && /*#__PURE__*/React.createElement(InfoPage, {
       email: user.email,
       apiVersion: apiVersion,
@@ -1532,6 +1647,7 @@ function _arrayWithHoles(r) { if (Array.isArray(r)) return r; }
       alertCount: alertCount
     }), drawerPlace ? /*#__PURE__*/React.createElement(PlaceDrawer, {
       place: drawerPlace,
+      places: places,
       onClose: function () {
         setDrawerPlace(null);
       },
