@@ -9,17 +9,17 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="apple-mobile-web-app-title" content="OurHealth.Watch">
 <title>OurHealth.Watch</title>
-<meta name="description" content="OurHealth.Watch — drug recalls, device recalls, and outbreak alerts for places you care about. Watch what your government is watching.">
+<meta name="description" content="OurHealth.Watch -- drug recalls, device recalls, and outbreak alerts for places you care about. Watch what your government is watching.">
 <meta name="robots" content="index, follow">
 <link rel="canonical" href="https://ourhealth.watch">
-<meta property="og:title" content="OurHealth.Watch — Watching what watches you.">
+<meta property="og:title" content="OurHealth.Watch -- Watching what watches you.">
 <meta property="og:description" content="Drug recalls, device recalls, and outbreak alerts for places you care about.">
 <meta property="og:url" content="https://ourhealth.watch">
 <meta property="og:type" content="website">
-<!-- ── DEBUG v0.1.7-debug2: plain JS, runs before Babel/React so we always see something ── -->
+<!-- DEBUG v0.1.7-debug2: plain JS, runs before Babel/React so we always see something -->
 <script>
   (function(){
-    // Visible version marker — if you see this banner, the new file IS deployed.
+    // Visible version marker -- if you see this banner, the new file IS deployed.
     function showBanner(text, color) {
       var b = document.getElementById('debug-banner') || document.createElement('div');
       b.id = 'debug-banner';
@@ -28,10 +28,9 @@
       if (!b.parentNode && document.body) document.body.appendChild(b);
       else if (!b.parentNode) document.addEventListener('DOMContentLoaded', function(){ document.body.appendChild(b); });
     }
-    showBanner('debug7-extdiag · waiting for React...', '#facc15');
+    showBanner('debug7-extdiag . waiting for React...', '#facc15');
     window.__ohwBannerSet = showBanner;
 
-```
 window.addEventListener('error', function(e){
   var root = document.getElementById('root');
   if (root) {
@@ -54,9 +53,8 @@ window.addEventListener('unhandledrejection', function(e){
       '</div>';
   }
 });
-```
 
-})();
+  })();
 </script>
 
 <script src="https://cdn.tailwindcss.com" onload="window.__cdn_tailwind=1" onerror="window.__cdn_tailwind=0"></script>
@@ -93,36 +91,58 @@ window.addEventListener('unhandledrejection', function(e){
   * { -webkit-tap-highlight-color: transparent; font-family: Georgia, 'Times New Roman', serif; box-sizing: border-box; }
   html, body { height: 100%; overflow-x: hidden; margin: 0; padding: 0; background: #0a1929; }
   .app-bg {
+    position: relative;
     background-color: #0a1929;
+    min-height: 100vh;
+    isolation: isolate;
+  }
+  .app-bg::before {
+    content: '';
+    position: fixed;
+    top: -12px; left: -12px; right: -12px; bottom: -12px;
     background-image:
       linear-gradient(rgba(10,25,41,0.55), rgba(10,25,41,0.75)),
+      url('./ohw-bg.png'),
       linear-gradient(180deg, #0a1929 0%, #122c47 50%, #0a1929 100%);
-    background-size: 100% 100%;
+    background-size: 100% 100%, cover, 100% 100%;
     background-position: center center;
     background-repeat: no-repeat;
-    background-attachment: scroll;
-    min-height: 100vh;
+    filter: blur(5px);
+    z-index: -1;
+    pointer-events: none;
   }
   .ohw-bg-login {
     background-color: #0a1929;
     background-image:
       linear-gradient(rgba(10,25,41,0.45), rgba(10,25,41,0.65)),
+      url('./ohw-bg.png'),
       linear-gradient(180deg, #0a1929 0%, #122c47 50%, #0a1929 100%);
-    background-size: 100% 100%;
-    background-position: center center;
-    background-repeat: no-repeat;
-    background-attachment: scroll;
-  }
-  .ohw-page-bg {
-    background-color: #0a1929;
-    background-image:
-      linear-gradient(rgba(10,25,41,0.55), rgba(10,25,41,0.75)),
-      linear-gradient(180deg, #0a1929 0%, #122c47 50%, #0a1929 100%);
-    background-size: 100% 100%;
+    background-size: 100% 100%, cover, 100% 100%;
     background-position: center center;
     background-repeat: no-repeat;
     background-attachment: scroll;
     min-height: 100vh;
+  }
+  .ohw-page-bg {
+    position: relative;
+    background-color: #0a1929;
+    min-height: 100vh;
+    isolation: isolate;
+  }
+  .ohw-page-bg::before {
+    content: '';
+    position: fixed;
+    top: -12px; left: -12px; right: -12px; bottom: -12px;
+    background-image:
+      linear-gradient(rgba(10,25,41,0.55), rgba(10,25,41,0.75)),
+      url('./ohw-bg.png'),
+      linear-gradient(180deg, #0a1929 0%, #122c47 50%, #0a1929 100%);
+    background-size: 100% 100%, cover, 100% 100%;
+    background-position: center center;
+    background-repeat: no-repeat;
+    filter: blur(5px);
+    z-index: -1;
+    pointer-events: none;
   }
   .card-mw {
     background: linear-gradient(180deg, rgba(30,45,65,0.92) 0%, rgba(20,32,48,0.92) 100%);
