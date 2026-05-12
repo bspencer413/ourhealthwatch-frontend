@@ -33,7 +33,7 @@ function _arrayWithHoles(r) { if (Array.isArray(r)) return r; }
 
   // -- CONFIG --------------------------------------------------------------------
   const API_BASE = 'https://ourhealthwatch-backend.onrender.com';
-  const APP_VERSION = '0.1.7';
+  const APP_VERSION = '0.1.18';
   const TOKEN_KEY = 'oh_token';
   const USER_KEY = 'oh_user';
 
