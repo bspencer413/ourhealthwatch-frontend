@@ -33,7 +33,7 @@ function _arrayWithHoles(r) { if (Array.isArray(r)) return r; }
 
   // -- CONFIG --------------------------------------------------------------------
   const API_BASE = 'https://ourhealthwatch-backend.onrender.com';
-  const APP_VERSION = '0.1.19';
+  const APP_VERSION = '0.1.23';
   const TOKEN_KEY = 'oh_token';
   const USER_KEY = 'oh_user';
 
@@ -109,6 +109,7 @@ function _arrayWithHoles(r) { if (Array.isArray(r)) return r; }
   function sourceLabel(src) {
     if (src === 'fda_drug') return 'Drug';
     if (src === 'fda_device') return 'Device';
+    if (src === 'cdc_syn') return 'CDC';
     if (src === 'cdc_nors') return 'NORS';
     if (src === 'who_don') return 'WHO';
     if (src === 'cdc_vsp') return 'VSP';
@@ -117,7 +118,7 @@ function _arrayWithHoles(r) { if (Array.isArray(r)) return r; }
   function sourceBadgeClass(src) {
     if (src === 'fda_drug') return 'source-drug';
     if (src === 'fda_device') return 'source-device';
-    if (src === 'cdc_nors' || src === 'who_don' || src === 'cdc_vsp') return 'source-outbreak';
+    if (src === 'cdc_syn' || src === 'cdc_nors' || src === 'who_don' || src === 'cdc_vsp') return 'source-outbreak';
     return 'class-III';
   }
 
@@ -233,7 +234,7 @@ function _arrayWithHoles(r) { if (Array.isArray(r)) return r; }
     return /*#__PURE__*/React.createElement("div", {
       className: "ohw-bg-login min-h-screen flex flex-col items-center px-4",
       style: {
-        paddingTop: '4vh',
+        paddingTop: '18vh',
         paddingBottom: '8vh'
       }
     }, /*#__PURE__*/React.createElement("div", {
@@ -810,7 +811,7 @@ function _arrayWithHoles(r) { if (Array.isArray(r)) return r; }
     return /*#__PURE__*/React.createElement("div", {
       className: "min-h-screen flex flex-col px-3",
       style: {
-        paddingTop: '4vh',
+        paddingTop: '18vh',
         paddingBottom: '8rem'
       }
     }, /*#__PURE__*/React.createElement("div", {
