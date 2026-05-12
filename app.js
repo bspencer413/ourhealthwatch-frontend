@@ -1090,7 +1090,7 @@ function _arrayWithHoles(r) { if (Array.isArray(r)) return r; }
       className: "text-red-300 text-base py-3"
     }, err) : /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("p", {
       className: "text-white/60 text-sm mb-3 italic"
-    }, outbreaks.length === 0 && recalls.length === 0 ? 'Nothing active here right now. We\'re watching.' : outbreaks.length + ' outbreak' + (outbreaks.length === 1 ? '' : 's') + ' . ' + recalls.length + ' recall' + (recalls.length === 1 ? '' : 's')), outbreaks.length > 0 ? /*#__PURE__*/React.createElement("div", {
+    }, outbreaks.length === 0 ? 'Nothing active here right now. We\'re watching.' : outbreaks.length + ' outbreak' + (outbreaks.length === 1 ? '' : 's')), outbreaks.length > 0 ? /*#__PURE__*/React.createElement("div", {
       className: "mb-4"
     }, /*#__PURE__*/React.createElement("p", {
       className: "text-emerald-300 text-lg font-bold mb-2"
@@ -1098,15 +1098,6 @@ function _arrayWithHoles(r) { if (Array.isArray(r)) return r; }
       return /*#__PURE__*/React.createElement(OutbreakCard, {
         key: o.id,
         outbreak: o
-      });
-    })) : null, recalls.length > 0 ? /*#__PURE__*/React.createElement("div", {
-      className: "mb-4"
-    }, /*#__PURE__*/React.createElement("p", {
-      className: "text-red-300 text-lg font-bold mb-2"
-    }, "Recalls"), recalls.map(function (r) {
-      return /*#__PURE__*/React.createElement(RecallCard, {
-        key: r.id,
-        recall: r
       });
     })) : null), /*#__PURE__*/React.createElement("div", {
       className: "space-y-2 mt-4"
@@ -1132,10 +1123,10 @@ function _arrayWithHoles(r) { if (Array.isArray(r)) return r; }
 
   // -- WATCHLIST PAGE (renders PLACES, not recall items) -------------------------
   function WatchlistPage(props) {
-    // Places that haven't been saved to My Places yet -- saving moves them out of here.
-    const places = (props.places || []).filter(function (p) {
-      return !p.in_my_places;
-    });
+    // Watchlist is the canonical list of cron-monitored places. My Places is a
+    // subset view (in_my_places=true). Saving to My Places does NOT remove from
+    // Watchlist -- it just flags the row for the subset view. Place ALWAYS stays here.
+    const places = props.places || [];
     return /*#__PURE__*/React.createElement("div", {
       className: "px-3 pb-32",
       style: {
