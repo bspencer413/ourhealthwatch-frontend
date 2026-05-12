@@ -476,7 +476,10 @@ function _arrayWithHoles(r) { if (Array.isArray(r)) return r; }
       _useState20 = _slicedToArray(_useState19, 2),
       busy = _useState20[0],
       setBusy = _useState20[1];
-    const _useState21 = useState(props.initialSource || ''),
+    // Default to WHO DON -- international current outbreak signal.
+    // CDC syn is the US-focused current signal (CDC Content Syndication API,
+    // replaces the mothballed NORS feed which trailed reality by 1-3 years).
+    const _useState21 = useState(props.initialSource || 'who_don'),
       _useState22 = _slicedToArray(_useState21, 2),
       source = _useState22[0],
       setSource = _useState22[1];
@@ -500,32 +503,47 @@ function _arrayWithHoles(r) { if (Array.isArray(r)) return r; }
       });
     }
     useEffect(load, [source]);
-    const checkedKey = source || 'cdc_nors';
+    const checkedKey = source || 'who_don';
     const checkedAt = ingest[checkedKey] && ingest[checkedKey].last_checked_at || null;
     const checkedRel = checkedAt ? fmtRelative(checkedAt) : '';
+    let tabNote = '';
+    if (source === 'who_don') {
+      tabNote = 'WHO Disease Outbreak News -- international outbreaks, published within days.';
+    } else if (source === 'cdc_syn') {
+      tabNote = 'CDC outbreak notices via Content Syndication -- US-focused current alerts, including multistate foodborne outbreaks. Published when CDC issues a notice.';
+    } else {
+      tabNote = 'All current outbreak sources combined.';
+    }
     return /*#__PURE__*/React.createElement(PageCard, null, /*#__PURE__*/React.createElement(CardPageHeader, {
       title: "Latest Outbreaks",
-      subtitle: "CDC NORS foodborne & waterborne \xB7 WHO DON coming"
+      subtitle: "WHO international . CDC US . both current"
     }), /*#__PURE__*/React.createElement("div", {
-      className: "mb-4 flex flex-wrap gap-2 justify-center"
+      className: "mb-2 flex flex-wrap gap-2 justify-center"
     }, /*#__PURE__*/React.createElement("button", {
+      onClick: function () {
+        setSource('who_don');
+      },
+      className: "text-sm px-3 py-1 rounded " + (source === 'who_don' ? "bg-blue-700 text-white" : "bg-gray-700 text-white/80 border border-gray-500")
+    }, "WHO . International"), /*#__PURE__*/React.createElement("button", {
+      onClick: function () {
+        setSource('cdc_syn');
+      },
+      className: "text-sm px-3 py-1 rounded " + (source === 'cdc_syn' ? "bg-blue-700 text-white" : "bg-gray-700 text-white/80 border border-gray-500")
+    }, "CDC . US"), /*#__PURE__*/React.createElement("button", {
       onClick: function () {
         setSource('');
       },
       className: "text-sm px-3 py-1 rounded " + (source === '' ? "bg-blue-700 text-white" : "bg-gray-700 text-white/80 border border-gray-500")
-    }, "All"), /*#__PURE__*/React.createElement("button", {
-      onClick: function () {
-        setSource('cdc_nors');
-      },
-      className: "text-sm px-3 py-1 rounded " + (source === 'cdc_nors' ? "bg-blue-700 text-white" : "bg-gray-700 text-white/80 border border-gray-500")
-    }, "NORS")), /*#__PURE__*/React.createElement("div", {
+    }, "All")), /*#__PURE__*/React.createElement("p", {
+      className: "text-white/55 text-xs italic text-center px-2 mb-3"
+    }, tabNote), /*#__PURE__*/React.createElement("div", {
       className: "mb-4 text-center"
     }, /*#__PURE__*/React.createElement("button", {
       onClick: props.onBack,
       className: "text-base px-4 py-2 rounded bg-gray-700 text-white border border-gray-500 hover:bg-gray-600"
-    }, "\u2190 Back")), busy ? /*#__PURE__*/React.createElement("p", {
+    }, '\u2190', " Back")), busy ? /*#__PURE__*/React.createElement("p", {
       className: "text-white text-base text-center"
-    }, "Loading\u2026") : items === null || items.length === 0 ? /*#__PURE__*/React.createElement("div", {
+    }, "Loading...") : items === null || items.length === 0 ? /*#__PURE__*/React.createElement("div", {
       className: "text-center py-4"
     }, /*#__PURE__*/React.createElement("p", {
       className: "text-white text-base"
@@ -533,7 +551,7 @@ function _arrayWithHoles(r) { if (Array.isArray(r)) return r; }
       className: "text-white/60 text-sm mt-2 italic"
     }, "Last checked ", checkedRel, ". We're watching.") : null) : /*#__PURE__*/React.createElement("div", null, checkedRel ? /*#__PURE__*/React.createElement("p", {
       className: "text-white/60 text-sm text-center mb-3 italic"
-    }, "Last checked ", checkedRel, " \xB7 ", items.length, " outbreak", items.length === 1 ? '' : 's') : null, items.map(function (o) {
+    }, "Last checked ", checkedRel, " . ", items.length, " outbreak", items.length === 1 ? '' : 's') : null, items.map(function (o) {
       return /*#__PURE__*/React.createElement(OutbreakCard, {
         key: o.id,
         outbreak: o
@@ -543,7 +561,7 @@ function _arrayWithHoles(r) { if (Array.isArray(r)) return r; }
     }, /*#__PURE__*/React.createElement("button", {
       onClick: props.onBack,
       className: "text-base px-4 py-2 rounded bg-gray-700 text-white border border-gray-500 hover:bg-gray-600"
-    }, "\u2190 Back")));
+    }, '\u2190', " Back")));
   }
 
   // -- SEARCH PAGE (v0.1.7: PLACE-BASED, mirrors EarthWatch + CW pattern) --------
@@ -883,7 +901,10 @@ function _arrayWithHoles(r) { if (Array.isArray(r)) return r; }
         className: "text-blue-300 text-sm underline"
       }, "Search again")), /*#__PURE__*/React.createElement("p", {
         className: "text-white/70 text-xs italic"
-      }, "Checked ", results.checked_at ? fmtRelative(results.checked_at) : 'just now', "."), /*#__PURE__*/React.createElement("div", {
+      }, "Checked ", results.checked_at ? new Date(results.checked_at).toLocaleString(undefined, {
+        dateStyle: 'medium',
+        timeStyle: 'short'
+      }) : 'just now'), /*#__PURE__*/React.createElement("div", {
         className: "space-y-2 pb-2 border-b border-white/15"
       }, /*#__PURE__*/React.createElement("button", {
         onClick: function () {
@@ -903,7 +924,10 @@ function _arrayWithHoles(r) { if (Array.isArray(r)) return r; }
         className: "text-white/70 text-sm italic"
       }, "No outbreaks reported here currently. The cron will alert you when one shows up."), results.checked_at ? /*#__PURE__*/React.createElement("p", {
         className: "text-white/45 text-xs italic mt-1"
-      }, "Checked ", fmtRelative(results.checked_at), ".") : null) : outbreaks.map(function (o) {
+      }, "Checked ", new Date(results.checked_at).toLocaleString(undefined, {
+        dateStyle: 'medium',
+        timeStyle: 'short'
+      })) : null) : outbreaks.map(function (o) {
         const key = 'o:' + o.id;
         const isBusy = savingResultKey === key;
         const cardLoc = o.region || o.location;
@@ -931,7 +955,10 @@ function _arrayWithHoles(r) { if (Array.isArray(r)) return r; }
         className: "text-white/70 text-sm italic"
       }, "No recalls reported here currently."), results.checked_at ? /*#__PURE__*/React.createElement("p", {
         className: "text-white/45 text-xs italic mt-1"
-      }, "Checked ", fmtRelative(results.checked_at), ".") : null) : visibleRecalls.map(function (rc) {
+      }, "Checked ", new Date(results.checked_at).toLocaleString(undefined, {
+        dateStyle: 'medium',
+        timeStyle: 'short'
+      })) : null) : visibleRecalls.map(function (rc) {
         const key = 'r:' + rc.id;
         const isBusy = savingResultKey === key;
         // For nationwide recalls, save the searched state (or distribution).
