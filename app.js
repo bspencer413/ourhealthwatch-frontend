@@ -33,7 +33,7 @@ function _arrayWithHoles(r) { if (Array.isArray(r)) return r; }
 
   // -- CONFIG --------------------------------------------------------------------
   const API_BASE = 'https://ourhealthwatch-backend.onrender.com';
-  const APP_VERSION = '0.1.18';
+  const APP_VERSION = '0.1.19';
   const TOKEN_KEY = 'oh_token';
   const USER_KEY = 'oh_user';
 
@@ -806,7 +806,7 @@ function _arrayWithHoles(r) { if (Array.isArray(r)) return r; }
     const outbreaks = results && results.outbreaks || [];
     const recalls = results && results.recalls || [];
     const totalResults = outbreaks.length + recalls.length;
-    const searchValid = !!(state && state.trim());
+    const searchValid = !!(state && state.trim() || region && region.trim());
     return /*#__PURE__*/React.createElement("div", {
       className: "min-h-screen flex flex-col px-3",
       style: {
