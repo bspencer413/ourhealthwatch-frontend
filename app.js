@@ -33,7 +33,7 @@ function _arrayWithHoles(r) { if (Array.isArray(r)) return r; }
 
   // -- CONFIG --------------------------------------------------------------------
   const API_BASE = 'https://ourhealthwatch-backend.onrender.com';
-  const APP_VERSION = '0.1.24';
+  const APP_VERSION = '0.1.25';
   const TOKEN_KEY = 'oh_token';
   const USER_KEY = 'oh_user';
 
@@ -113,12 +113,13 @@ function _arrayWithHoles(r) { if (Array.isArray(r)) return r; }
     if (src === 'cdc_nors') return 'NORS';
     if (src === 'who_don') return 'WHO';
     if (src === 'cdc_vsp') return 'VSP';
+    if (src === 'epa_enforce') return 'EPA';
     return src || '';
   }
   function sourceBadgeClass(src) {
     if (src === 'fda_drug') return 'source-drug';
     if (src === 'fda_device') return 'source-device';
-    if (src === 'cdc_syn' || src === 'cdc_nors' || src === 'who_don' || src === 'cdc_vsp') return 'source-outbreak';
+    if (src === 'cdc_syn' || src === 'cdc_nors' || src === 'who_don' || src === 'cdc_vsp' || src === 'epa_enforce') return 'source-outbreak';
     return 'class-III';
   }
 
