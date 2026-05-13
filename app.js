@@ -33,7 +33,7 @@ function _arrayWithHoles(r) { if (Array.isArray(r)) return r; }
 
   // -- CONFIG --------------------------------------------------------------------
   const API_BASE = 'https://ourhealthwatch-backend.onrender.com';
-  const APP_VERSION = '0.1.25';
+  const APP_VERSION = '0.1.32';
   const TOKEN_KEY = 'oh_token';
   const USER_KEY = 'oh_user';
 
@@ -818,26 +818,29 @@ function _arrayWithHoles(r) { if (Array.isArray(r)) return r; }
     }, /*#__PURE__*/React.createElement("div", {
       className: "flex flex-col items-center justify-center text-center mb-4"
     }, /*#__PURE__*/React.createElement("h1", {
-      className: "text-white font-black",
+      className: "text-white font-black text-center",
       style: {
-        fontSize: '3.5rem',
-        lineHeight: '1.05',
-        letterSpacing: '-0.02em',
-        textShadow: '0 2px 8px rgba(0,0,0,0.6)'
+        fontSize: '3rem',
+        letterSpacing: '0.04em',
+        lineHeight: 0.95,
+        textTransform: 'uppercase',
+        textShadow: '0 2px 10px rgba(0,0,0,0.85)',
+        WebkitTextStroke: '0.5px #fff',
+        margin: 0
       }
-    }, "OurHealth", /*#__PURE__*/React.createElement("span", {
-      className: "text-blue-300"
-    }, ".Watch")), /*#__PURE__*/React.createElement("p", {
-      className: "text-white/85 text-lg mt-3 italic max-w-md"
-    }, "Watching what watches you."), /*#__PURE__*/React.createElement("p", {
-      className: "text-white/70 text-base mt-1 max-w-md"
-    }, "Are there outbreaks where you're going? Search a place. We'll show you.")), /*#__PURE__*/React.createElement("div", {
+    }, "Our", /*#__PURE__*/React.createElement("br", null), "Health", /*#__PURE__*/React.createElement("br", null), "Watch"), /*#__PURE__*/React.createElement("p", {
+      className: "text-white/90 text-lg mt-5 max-w-md leading-snug"
+    }, "We watch out for what impacts our health so you don't have to."), /*#__PURE__*/React.createElement("p", {
+      className: "text-white/75 text-base mt-2 max-w-md leading-snug"
+    }, "Drug and device recalls, outbreaks, environmental enforcement \u2014 at home or on the road."), /*#__PURE__*/React.createElement("p", {
+      className: "text-white/70 text-sm mt-2 max-w-md italic"
+    }, "Whole person. Whole community.")), /*#__PURE__*/React.createElement("div", {
       className: "max-w-md mx-auto w-full"
     }, /*#__PURE__*/React.createElement("div", {
       className: "card-mw rounded-2xl p-5 space-y-3"
     }, /*#__PURE__*/React.createElement("p", {
       className: "text-white/80 text-base text-center leading-snug"
-    }, "Enter a state or country to search."), /*#__PURE__*/React.createElement("input", {
+    }, "Enter a state, country, or city \u2014 your neighborhood, your kids' college town, your next trip."), /*#__PURE__*/React.createElement("input", {
       type: "text",
       placeholder: "State or Country (required)",
       value: state,
@@ -1029,7 +1032,7 @@ function _arrayWithHoles(r) { if (Array.isArray(r)) return r; }
       })));
     }() : null, /*#__PURE__*/React.createElement("p", {
       className: "text-white/40 text-xs text-center px-6 italic mt-4"
-    }, "FDA . CDC . WHO. Based on publicly available sources.")));
+    }, "FDA \u00B7 CDC \u00B7 WHO \u00B7 EPA. Based on publicly available sources.")));
   }
 
   // -- WATCHLIST TILE -- active monitoring view (emerald theme) -------------------
@@ -1312,7 +1315,7 @@ function _arrayWithHoles(r) { if (Array.isArray(r)) return r; }
       }
     }, /*#__PURE__*/React.createElement(BackgroundHeader, {
       title: "Watchlist (" + places.length + ")",
-      subtitle: "Places we're actively monitoring"
+      subtitle: "Tap a place to see active recalls, outbreaks, and enforcement"
     }), /*#__PURE__*/React.createElement("div", {
       className: "card-mw rounded-2xl p-5 max-w-2xl mx-auto",
       style: {
@@ -1320,7 +1323,7 @@ function _arrayWithHoles(r) { if (Array.isArray(r)) return r; }
       }
     }, places.length === 0 ? /*#__PURE__*/React.createElement("p", {
       className: "text-white text-xl text-center py-6"
-    }, "Your Watchlist is empty. Use Search to add a region, state, or city.") : places.map(function (p) {
+    }, "Your Watchlist is empty. Use Search to add a place \u2014 your neighborhood, your state, anywhere you care about.") : places.map(function (p) {
       return /*#__PURE__*/React.createElement(WatchlistTile, {
         key: p.id,
         place: p,
@@ -1342,7 +1345,7 @@ function _arrayWithHoles(r) { if (Array.isArray(r)) return r; }
       }
     }, /*#__PURE__*/React.createElement(BackgroundHeader, {
       title: "My Places (" + saved.length + ")",
-      subtitle: "Saved places -- they stay on the Watchlist too"
+      subtitle: "Your saved places \u2014 also being watched"
     }), /*#__PURE__*/React.createElement("div", {
       className: "card-mw rounded-2xl p-5 max-w-2xl mx-auto",
       style: {
@@ -1350,7 +1353,7 @@ function _arrayWithHoles(r) { if (Array.isArray(r)) return r; }
       }
     }, saved.length === 0 ? /*#__PURE__*/React.createElement("p", {
       className: "text-white text-xl text-center py-6"
-    }, "No saved places yet. Open any place from your Watchlist and tap * Save to My Places.") : saved.map(function (p) {
+    }, "No saved places yet. Tap * Save to My Places in any drawer for quick reference.") : saved.map(function (p) {
       return /*#__PURE__*/React.createElement(MyPlacesTile, {
         key: p.id,
         place: p,
@@ -1400,7 +1403,7 @@ function _arrayWithHoles(r) { if (Array.isArray(r)) return r; }
       }
     }, /*#__PURE__*/React.createElement(BackgroundHeader, {
       title: "Alerts (" + items.length + ")",
-      subtitle: "Outbreak and recall activity at your places"
+      subtitle: "Recalls, outbreaks, and enforcement at your places"
     }), /*#__PURE__*/React.createElement("div", {
       className: "card-mw rounded-2xl p-5 max-w-2xl mx-auto",
       style: {
@@ -1410,7 +1413,7 @@ function _arrayWithHoles(r) { if (Array.isArray(r)) return r; }
       className: "text-white text-base text-center"
     }, "Loading\u2026") : items.length === 0 ? /*#__PURE__*/React.createElement("p", {
       className: "text-white text-xl text-center py-6"
-    }, "No alerts. We're watching \u2014 when something happens at a place on your Watchlist, you'll see it here.") : items.map(function (n) {
+    }, "No alerts. We're watching the places on your Watchlist \u2014 when a recall, outbreak, or enforcement action happens there, you'll see it here.") : items.map(function (n) {
       return /*#__PURE__*/React.createElement("div", {
         key: n.id,
         className: "card-recall rounded-lg p-4 mb-3"
@@ -1455,11 +1458,11 @@ function _arrayWithHoles(r) { if (Array.isArray(r)) return r; }
       }
     }, /*#__PURE__*/React.createElement("p", {
       className: "text-white text-base"
-    }, "OurHealth.Watch monitors official public-health feeds \u2014 FDA drug and device recalls, CDC outbreak reports, WHO disease outbreak news \u2014 for places you care about. Pick a region, state, or city. Add it to your Watchlist. We'll alert you when something happens there."), /*#__PURE__*/React.createElement("p", {
+    }, "OurHealth.Watch keeps an eye on the things that could affect your family's or community's health: drug recalls, medical device recalls, disease outbreaks, and environmental enforcement actions. Pick the places that matter \u2014 your neighborhood, your state, where your kids live, where you're traveling \u2014 and we'll watch them for you."), /*#__PURE__*/React.createElement("p", {
       className: "text-white/80 text-sm mt-3"
-    }, "Companion to Cruise Ship Watch and EarthWatch. Watch a place. Save the ones you care about. That's it."), /*#__PURE__*/React.createElement("p", {
+    }, "Companion to Cruise Ship Watch, EarthWatch, and Memorial Watch. Watch what matters. Save the places you care about."), /*#__PURE__*/React.createElement("p", {
       className: "text-white/60 text-xs mt-4 italic"
-    }, "Based on publicly available sources. Not medical advice."), /*#__PURE__*/React.createElement("hr", {
+    }, "Based on publicly available sources from FDA, CDC, WHO, and EPA. Not medical advice."), /*#__PURE__*/React.createElement("hr", {
       className: "border-white/20 my-5"
     }), /*#__PURE__*/React.createElement("p", {
       className: "text-white/80 text-sm"
