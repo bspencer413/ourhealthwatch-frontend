@@ -33,7 +33,7 @@ function _arrayWithHoles(r) { if (Array.isArray(r)) return r; }
 
   // -- CONFIG --------------------------------------------------------------------
   const API_BASE = 'https://ourhealthwatch-backend.onrender.com';
-  const APP_VERSION = '0.1.32';
+  const APP_VERSION = '0.1.34';
   const TOKEN_KEY = 'oh_token';
   const USER_KEY = 'oh_user';
 
@@ -812,7 +812,7 @@ function _arrayWithHoles(r) { if (Array.isArray(r)) return r; }
     return /*#__PURE__*/React.createElement("div", {
       className: "min-h-screen flex flex-col px-3",
       style: {
-        paddingTop: '18vh',
+        paddingTop: '4vh',
         paddingBottom: '8rem'
       }
     }, /*#__PURE__*/React.createElement("div", {
@@ -831,9 +831,7 @@ function _arrayWithHoles(r) { if (Array.isArray(r)) return r; }
     }, "Our", /*#__PURE__*/React.createElement("br", null), "Health", /*#__PURE__*/React.createElement("br", null), "Watch"), /*#__PURE__*/React.createElement("p", {
       className: "text-white/90 text-lg mt-5 max-w-md leading-snug"
     }, "We watch out for what impacts our health so you don't have to."), /*#__PURE__*/React.createElement("p", {
-      className: "text-white/75 text-base mt-2 max-w-md leading-snug"
-    }, "Drug and device recalls, outbreaks, environmental enforcement \u2014 at home or on the road."), /*#__PURE__*/React.createElement("p", {
-      className: "text-white/70 text-sm mt-2 max-w-md italic"
+      className: "text-white text-xl mt-3 max-w-md italic font-semibold"
     }, "Whole person. Whole community.")), /*#__PURE__*/React.createElement("div", {
       className: "max-w-md mx-auto w-full"
     }, /*#__PURE__*/React.createElement("div", {
@@ -918,8 +916,8 @@ function _arrayWithHoles(r) { if (Array.isArray(r)) return r; }
     }, busy ? '...' : 'Search'), /*#__PURE__*/React.createElement("div", {
       className: "pt-3 border-t border-white/15 space-y-3"
     }, /*#__PURE__*/React.createElement("p", {
-      className: "text-white/60 text-xs text-center uppercase tracking-wider"
-    }, "Or browse the firehose"), /*#__PURE__*/React.createElement("button", {
+      className: "text-white/80 text-sm text-center leading-snug"
+    }, "Drug and device recalls, outbreaks, environmental enforcement \u2014 at home or on the road."), /*#__PURE__*/React.createElement("button", {
       onClick: function () {
         setView('recalls');
       },
@@ -1315,7 +1313,7 @@ function _arrayWithHoles(r) { if (Array.isArray(r)) return r; }
       }
     }, /*#__PURE__*/React.createElement(BackgroundHeader, {
       title: "Watchlist (" + places.length + ")",
-      subtitle: "Tap a place to see active recalls, outbreaks, and enforcement"
+      subtitle: "Tap a place to see active recalls, outbreaks, and enforcement. We'll alert you to changes."
     }), /*#__PURE__*/React.createElement("div", {
       className: "card-mw rounded-2xl p-5 max-w-2xl mx-auto",
       style: {
@@ -1345,7 +1343,7 @@ function _arrayWithHoles(r) { if (Array.isArray(r)) return r; }
       }
     }, /*#__PURE__*/React.createElement(BackgroundHeader, {
       title: "My Places (" + saved.length + ")",
-      subtitle: "Your saved places \u2014 also being watched"
+      subtitle: "Tap a place and get an instant update"
     }), /*#__PURE__*/React.createElement("div", {
       className: "card-mw rounded-2xl p-5 max-w-2xl mx-auto",
       style: {
