@@ -33,7 +33,7 @@ function _arrayWithHoles(r) { if (Array.isArray(r)) return r; }
 
   // -- CONFIG --------------------------------------------------------------------
   const API_BASE = 'https://ourhealthwatch-backend.onrender.com';
-  const APP_VERSION = '0.1.35';
+  const APP_VERSION = '0.1.36';
   const TOKEN_KEY = 'oh_token';
   const USER_KEY = 'oh_user';
 
@@ -241,7 +241,7 @@ function _arrayWithHoles(r) { if (Array.isArray(r)) return r; }
     }, /*#__PURE__*/React.createElement("div", {
       className: "w-full max-w-sm flex-1 flex flex-col"
     }, /*#__PURE__*/React.createElement("div", {
-      className: "flex-1 flex items-center justify-center"
+      className: "flex-1 flex flex-col items-center justify-center"
     }, /*#__PURE__*/React.createElement("h1", {
       className: "text-white font-black text-center",
       style: {
@@ -253,7 +253,9 @@ function _arrayWithHoles(r) { if (Array.isArray(r)) return r; }
         WebkitTextStroke: '1px #fff',
         margin: 0
       }
-    }, "Our", /*#__PURE__*/React.createElement("br", null), "Health", /*#__PURE__*/React.createElement("br", null), "Watch")), /*#__PURE__*/React.createElement("div", {
+    }, "Our", /*#__PURE__*/React.createElement("br", null), "Health", /*#__PURE__*/React.createElement("br", null), "Watch"), /*#__PURE__*/React.createElement("p", {
+      className: "text-white text-xl mt-6 italic font-semibold text-center"
+    }, "Whole person. Whole community.")), /*#__PURE__*/React.createElement("div", {
       className: "card-mw rounded-2xl p-5 space-y-3"
     }, /*#__PURE__*/React.createElement("input", {
       type: "email",
