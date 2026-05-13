@@ -33,12 +33,24 @@ function _arrayWithHoles(r) { if (Array.isArray(r)) return r; }
 
   // -- CONFIG --------------------------------------------------------------------
   const API_BASE = 'https://ourhealthwatch-backend.onrender.com';
-  const APP_VERSION = '0.1.7';
+  const APP_VERSION = '0.1.31';
   const TOKEN_KEY = 'oh_token';
   const USER_KEY = 'oh_user';
 
   // v0.1.7: same 12-region taxonomy as Cruise Ship Watch / EarthWatch.
   const OH_REGIONS = ['Africa', 'Alaska', 'Arctic', 'Asia', 'Caribbean', 'Central America', 'Mediterranean', 'Middle East', 'North America', 'Northern Europe', 'Oceania', 'South America'];
+
+  // 50 states + DC. Used to suppress nationwide FDA recalls on state searches
+  // (recalls don't filter by state, so they're noise when the user searches Hawaii).
+  const US_STATES = ['Alabama', 'Alaska', 'Arizona', 'Arkansas', 'California', 'Colorado', 'Connecticut', 'Delaware', 'District of Columbia', 'Florida', 'Georgia', 'Hawaii', 'Idaho', 'Illinois', 'Indiana', 'Iowa', 'Kansas', 'Kentucky', 'Louisiana', 'Maine', 'Maryland', 'Massachusetts', 'Michigan', 'Minnesota', 'Mississippi', 'Missouri', 'Montana', 'Nebraska', 'Nevada', 'New Hampshire', 'New Jersey', 'New Mexico', 'New York', 'North Carolina', 'North Dakota', 'Ohio', 'Oklahoma', 'Oregon', 'Pennsylvania', 'Rhode Island', 'South Carolina', 'South Dakota', 'Tennessee', 'Texas', 'Utah', 'Vermont', 'Virginia', 'Washington', 'West Virginia', 'Wisconsin', 'Wyoming'];
+  function isUSState(s) {
+    if (!s) return false;
+    const needle = String(s).trim().toLowerCase();
+    for (let i = 0; i < US_STATES.length; i++) {
+      if (US_STATES[i].toLowerCase() === needle) return true;
+    }
+    return false;
+  }
 
   // -- HELPERS -------------------------------------------------------------------
   function getToken() {
@@ -97,15 +109,17 @@ function _arrayWithHoles(r) { if (Array.isArray(r)) return r; }
   function sourceLabel(src) {
     if (src === 'fda_drug') return 'Drug';
     if (src === 'fda_device') return 'Device';
+    if (src === 'cdc_syn') return 'CDC';
     if (src === 'cdc_nors') return 'NORS';
     if (src === 'who_don') return 'WHO';
     if (src === 'cdc_vsp') return 'VSP';
+    if (src === 'epa_enforce') return 'EPA';
     return src || '';
   }
   function sourceBadgeClass(src) {
     if (src === 'fda_drug') return 'source-drug';
     if (src === 'fda_device') return 'source-device';
-    if (src === 'cdc_nors' || src === 'who_don' || src === 'cdc_vsp') return 'source-outbreak';
+    if (src === 'cdc_syn' || src === 'cdc_nors' || src === 'who_don' || src === 'cdc_vsp' || src === 'epa_enforce') return 'source-outbreak';
     return 'class-III';
   }
 
@@ -221,7 +235,7 @@ function _arrayWithHoles(r) { if (Array.isArray(r)) return r; }
     return /*#__PURE__*/React.createElement("div", {
       className: "ohw-bg-login min-h-screen flex flex-col items-center px-4",
       style: {
-        paddingTop: '4vh',
+        paddingTop: '18vh',
         paddingBottom: '8vh'
       }
     }, /*#__PURE__*/React.createElement("div", {
@@ -464,7 +478,10 @@ function _arrayWithHoles(r) { if (Array.isArray(r)) return r; }
       _useState20 = _slicedToArray(_useState19, 2),
       busy = _useState20[0],
       setBusy = _useState20[1];
-    const _useState21 = useState(props.initialSource || ''),
+    // Default to WHO DON -- international current outbreak signal.
+    // CDC syn is the US-focused current signal (CDC Content Syndication API,
+    // replaces the mothballed NORS feed which trailed reality by 1-3 years).
+    const _useState21 = useState(props.initialSource || 'who_don'),
       _useState22 = _slicedToArray(_useState21, 2),
       source = _useState22[0],
       setSource = _useState22[1];
@@ -488,32 +505,47 @@ function _arrayWithHoles(r) { if (Array.isArray(r)) return r; }
       });
     }
     useEffect(load, [source]);
-    const checkedKey = source || 'cdc_nors';
+    const checkedKey = source || 'who_don';
     const checkedAt = ingest[checkedKey] && ingest[checkedKey].last_checked_at || null;
     const checkedRel = checkedAt ? fmtRelative(checkedAt) : '';
+    let tabNote = '';
+    if (source === 'who_don') {
+      tabNote = 'WHO Disease Outbreak News -- international outbreaks, published within days.';
+    } else if (source === 'cdc_syn') {
+      tabNote = 'CDC outbreak notices via Content Syndication -- US-focused current alerts, including multistate foodborne outbreaks. Published when CDC issues a notice.';
+    } else {
+      tabNote = 'All current outbreak sources combined.';
+    }
     return /*#__PURE__*/React.createElement(PageCard, null, /*#__PURE__*/React.createElement(CardPageHeader, {
       title: "Latest Outbreaks",
-      subtitle: "CDC NORS foodborne & waterborne \xB7 WHO DON coming"
+      subtitle: "WHO international . CDC US . both current"
     }), /*#__PURE__*/React.createElement("div", {
-      className: "mb-4 flex flex-wrap gap-2 justify-center"
+      className: "mb-2 flex flex-wrap gap-2 justify-center"
     }, /*#__PURE__*/React.createElement("button", {
+      onClick: function () {
+        setSource('who_don');
+      },
+      className: "text-sm px-3 py-1 rounded " + (source === 'who_don' ? "bg-blue-700 text-white" : "bg-gray-700 text-white/80 border border-gray-500")
+    }, "WHO . International"), /*#__PURE__*/React.createElement("button", {
+      onClick: function () {
+        setSource('cdc_syn');
+      },
+      className: "text-sm px-3 py-1 rounded " + (source === 'cdc_syn' ? "bg-blue-700 text-white" : "bg-gray-700 text-white/80 border border-gray-500")
+    }, "CDC . US"), /*#__PURE__*/React.createElement("button", {
       onClick: function () {
         setSource('');
       },
       className: "text-sm px-3 py-1 rounded " + (source === '' ? "bg-blue-700 text-white" : "bg-gray-700 text-white/80 border border-gray-500")
-    }, "All"), /*#__PURE__*/React.createElement("button", {
-      onClick: function () {
-        setSource('cdc_nors');
-      },
-      className: "text-sm px-3 py-1 rounded " + (source === 'cdc_nors' ? "bg-blue-700 text-white" : "bg-gray-700 text-white/80 border border-gray-500")
-    }, "NORS")), /*#__PURE__*/React.createElement("div", {
+    }, "All")), /*#__PURE__*/React.createElement("p", {
+      className: "text-white/55 text-xs italic text-center px-2 mb-3"
+    }, tabNote), /*#__PURE__*/React.createElement("div", {
       className: "mb-4 text-center"
     }, /*#__PURE__*/React.createElement("button", {
       onClick: props.onBack,
       className: "text-base px-4 py-2 rounded bg-gray-700 text-white border border-gray-500 hover:bg-gray-600"
-    }, "\u2190 Back")), busy ? /*#__PURE__*/React.createElement("p", {
+    }, '\u2190', " Back")), busy ? /*#__PURE__*/React.createElement("p", {
       className: "text-white text-base text-center"
-    }, "Loading\u2026") : items === null || items.length === 0 ? /*#__PURE__*/React.createElement("div", {
+    }, "Loading...") : items === null || items.length === 0 ? /*#__PURE__*/React.createElement("div", {
       className: "text-center py-4"
     }, /*#__PURE__*/React.createElement("p", {
       className: "text-white text-base"
@@ -521,7 +553,7 @@ function _arrayWithHoles(r) { if (Array.isArray(r)) return r; }
       className: "text-white/60 text-sm mt-2 italic"
     }, "Last checked ", checkedRel, ". We're watching.") : null) : /*#__PURE__*/React.createElement("div", null, checkedRel ? /*#__PURE__*/React.createElement("p", {
       className: "text-white/60 text-sm text-center mb-3 italic"
-    }, "Last checked ", checkedRel, " \xB7 ", items.length, " outbreak", items.length === 1 ? '' : 's') : null, items.map(function (o) {
+    }, "Last checked ", checkedRel, " . ", items.length, " outbreak", items.length === 1 ? '' : 's') : null, items.map(function (o) {
       return /*#__PURE__*/React.createElement(OutbreakCard, {
         key: o.id,
         outbreak: o
@@ -531,7 +563,7 @@ function _arrayWithHoles(r) { if (Array.isArray(r)) return r; }
     }, /*#__PURE__*/React.createElement("button", {
       onClick: props.onBack,
       className: "text-base px-4 py-2 rounded bg-gray-700 text-white border border-gray-500 hover:bg-gray-600"
-    }, "\u2190 Back")));
+    }, '\u2190', " Back")));
   }
 
   // -- SEARCH PAGE (v0.1.7: PLACE-BASED, mirrors EarthWatch + CW pattern) --------
@@ -572,10 +604,10 @@ function _arrayWithHoles(r) { if (Array.isArray(r)) return r; }
       _useState40 = _slicedToArray(_useState39, 2),
       results = _useState40[0],
       setResults = _useState40[1]; // null | { outbreaks, recalls, query }
-    const _useState41 = useState(false),
+    const _useState41 = useState(''),
       _useState42 = _slicedToArray(_useState41, 2),
       savingTop = _useState42[0],
-      setSavingTop = _useState42[1];
+      setSavingTop = _useState42[1]; // '' | 'wl' | 'mp'
     const _useState43 = useState(''),
       _useState44 = _slicedToArray(_useState43, 2),
       savingResultKey = _useState44[0],
@@ -594,12 +626,49 @@ function _arrayWithHoles(r) { if (Array.isArray(r)) return r; }
         }
       });
     }
+
+    // EarthWatch-canonical dup-check. Given a prospective place name, returns
+    // null (no dup), or { type: 'watchlist' } / { type: 'myplaces' } depending
+    // on which list the existing same-named place sits in. Used to swap the
+    // "+ Add to Watchlist" button for a static "Already in ..." badge so the
+    // user can't double-save. Single place row in DB; in_my_places flag
+    // distinguishes the two states.
+    function findDup(prospectiveName) {
+      if (!prospectiveName) return null;
+      const target = prospectiveName.toLowerCase().trim();
+      if (!target) return null;
+      const list = props.places || [];
+      for (let i = 0; i < list.length; i++) {
+        const p = list[i];
+        if (p && p.name && p.name.toLowerCase().trim() === target) {
+          return {
+            type: p.in_my_places ? 'myplaces' : 'watchlist'
+          };
+        }
+      }
+      return null;
+    }
+
+    // Mirror backend's _derive_place_name() so the prospective name we compare
+    // against existing places matches what the backend would actually store.
+    // Prefer city, then state, then region. Same join order.
+    function deriveProspectiveName() {
+      const parts = [];
+      if (city && city.trim()) parts.push(city.trim());
+      if (state && state.trim()) parts.push(state.trim());
+      if (parts.length === 0 && region && region.trim()) parts.push(region.trim());
+      return parts.join(', ');
+    }
     function submitSearch() {
       setMsg('');
       setMsgKind('');
       const trimmedState = (state || '').trim();
-      if (!trimmedState) {
-        setMsg('State or Country is required.');
+      const trimmedRegion = (region || '').trim();
+      // v0.1.18: state OR region required. Region-only search lights up the
+      // region's country set via the new REGION_TO_COUNTRY_CODES branch on
+      // the backend; state still drives narrower per-state matching.
+      if (!trimmedState && !trimmedRegion) {
+        setMsg('Pick a Region, State, or Country to search.');
         setMsgKind('err');
         return;
       }
@@ -607,8 +676,8 @@ function _arrayWithHoles(r) { if (Array.isArray(r)) return r; }
       setBusy(true);
       setResults(null);
       const body = {
-        region: region || null,
-        state: trimmedState,
+        region: trimmedRegion || null,
+        state: trimmedState || null,
         city: (city || '').trim() || null
       };
       fetch(API_BASE + '/search-events', {
@@ -637,16 +706,17 @@ function _arrayWithHoles(r) { if (Array.isArray(r)) return r; }
       });
     }
 
-    // Save the searched location to Watchlist (top-level button after results).
-    function saveSearchToWatchlist() {
+    // Save the searched location. toMyPlaces=true sets in_my_places, else Watchlist.
+    function saveSearchToPlaces(toMyPlaces) {
       if (savingTop) return;
-      setSavingTop(true);
+      setSavingTop(toMyPlaces ? 'mp' : 'wl');
       setMsg('');
       setMsgKind('');
       const body = {
         region: region || null,
         state: (state || '').trim() || null,
-        city: (city || '').trim() || null
+        city: (city || '').trim() || null,
+        in_my_places: !!toMyPlaces
       };
       fetch(API_BASE + '/places', {
         method: 'POST',
@@ -660,38 +730,44 @@ function _arrayWithHoles(r) { if (Array.isArray(r)) return r; }
           };
         });
       }).then(function (res) {
-        setSavingTop(false);
+        setSavingTop('');
         if (!res.ok) {
           setMsg(res.d.detail || 'Could not save');
           setMsgKind('err');
           return;
         }
-        const name = res.d.name || [city, state, region].filter(Boolean).join(', ');
-        setMsg('Added "' + name + '" to your Watchlist.');
-        setMsgKind('ok');
         if (props.onPlaceAdded) props.onPlaceAdded();
-        // Reset to fresh state so user knows the save took effect.
+        // Reset before navigating so when user comes back to Search it's clean
         setResults(null);
         setRegion('');
         setStateVal('');
         setCity('');
+        setMsg('');
+        setMsgKind('');
+        // Auto-route to the destination tab so user sees their new item.
+        if (props.onNavigate) {
+          props.onNavigate(toMyPlaces ? 'myplaces' : 'watchlist');
+        }
       }).catch(function () {
-        setSavingTop(false);
+        setSavingTop('');
         setMsg('Network error');
         setMsgKind('err');
       });
     }
 
-    // Per-outbreak quick-add. Saves a place using the outbreak's location.
-    function saveOutbreakLocation(o) {
-      const key = 'o:' + o.id;
+    // Per-card add. Saves the card's specific location to Watchlist (cron monitors).
+    // For outbreaks: card.region holds state (NORS) or country (WHO).
+    // For recalls: card.distribution can be a state string. Caller passes both fields.
+    function saveCardLocation(key, locState, fallbackName) {
       if (savingResultKey) return;
       setSavingResultKey(key);
-      // Outbreak region holds the state (NORS) or country (WHO DON).
+      setMsg('');
+      setMsgKind('');
       const body = {
         region: null,
-        state: o.region || o.location || null,
-        city: null
+        state: locState || null,
+        city: null,
+        in_my_places: false
       };
       fetch(API_BASE + '/places', {
         method: 'POST',
@@ -711,7 +787,7 @@ function _arrayWithHoles(r) { if (Array.isArray(r)) return r; }
           setMsgKind('err');
           return;
         }
-        const name = res.d.name || o.region || o.location || 'location';
+        const name = res.d.name || locState || fallbackName || 'location';
         setMsg('Added "' + name + '" to your Watchlist.');
         setMsgKind('ok');
         if (props.onPlaceAdded) props.onPlaceAdded();
@@ -732,36 +808,39 @@ function _arrayWithHoles(r) { if (Array.isArray(r)) return r; }
     const outbreaks = results && results.outbreaks || [];
     const recalls = results && results.recalls || [];
     const totalResults = outbreaks.length + recalls.length;
-    const searchValid = !!(state && state.trim());
+    const searchValid = !!(state && state.trim() || region && region.trim());
     return /*#__PURE__*/React.createElement("div", {
       className: "min-h-screen flex flex-col px-3",
       style: {
-        paddingTop: '4vh',
+        paddingTop: '18vh',
         paddingBottom: '8rem'
       }
     }, /*#__PURE__*/React.createElement("div", {
       className: "flex flex-col items-center justify-center text-center mb-4"
     }, /*#__PURE__*/React.createElement("h1", {
-      className: "text-white font-black",
+      className: "text-white font-black text-center",
       style: {
-        fontSize: '3.5rem',
-        lineHeight: '1.05',
-        letterSpacing: '-0.02em',
-        textShadow: '0 2px 8px rgba(0,0,0,0.6)'
+        fontSize: '5rem',
+        letterSpacing: '0.04em',
+        lineHeight: 0.95,
+        textTransform: 'uppercase',
+        textShadow: '0 4px 16px rgba(0,0,0,0.9)',
+        WebkitTextStroke: '1px #fff',
+        margin: 0
       }
-    }, "OurHealth", /*#__PURE__*/React.createElement("span", {
-      className: "text-blue-300"
-    }, ".Watch")), /*#__PURE__*/React.createElement("p", {
-      className: "text-white/85 text-lg mt-3 italic max-w-md"
-    }, "Watching what watches you."), /*#__PURE__*/React.createElement("p", {
-      className: "text-white/70 text-base mt-1 max-w-md"
-    }, "Are there outbreaks where you're going? Search a place. We'll show you.")), /*#__PURE__*/React.createElement("div", {
+    }, "Our", /*#__PURE__*/React.createElement("br", null), "Health", /*#__PURE__*/React.createElement("br", null), "Watch"), /*#__PURE__*/React.createElement("p", {
+      className: "text-white/90 text-lg mt-5 max-w-md leading-snug"
+    }, "We watch out for what impacts our health so you don't have to."), /*#__PURE__*/React.createElement("p", {
+      className: "text-white/75 text-base mt-2 max-w-md leading-snug"
+    }, "Drug and device recalls, outbreaks, environmental enforcement \u2014 at home or on the road."), /*#__PURE__*/React.createElement("p", {
+      className: "text-white/70 text-sm mt-2 max-w-md italic"
+    }, "Whole person. Whole community.")), /*#__PURE__*/React.createElement("div", {
       className: "max-w-md mx-auto w-full"
     }, /*#__PURE__*/React.createElement("div", {
       className: "card-mw rounded-2xl p-5 space-y-3"
     }, /*#__PURE__*/React.createElement("p", {
       className: "text-white/80 text-base text-center leading-snug"
-    }, "Enter a state or country to search."), /*#__PURE__*/React.createElement("input", {
+    }, "Enter a state, country, or city \u2014 your neighborhood, your kids' college town, your next trip."), /*#__PURE__*/React.createElement("input", {
       type: "text",
       placeholder: "State or Country (required)",
       value: state,
@@ -850,79 +929,198 @@ function _arrayWithHoles(r) { if (Array.isArray(r)) return r; }
         setView('outbreaks');
       },
       className: "w-full py-3 rounded-xl bg-emerald-700 hover:bg-emerald-600 text-white text-base font-semibold"
-    }, "Browse Latest Outbreaks"))), results ? /*#__PURE__*/React.createElement("div", {
-      className: "card-mw rounded-2xl p-5 mt-4 space-y-3"
-    }, /*#__PURE__*/React.createElement("div", {
-      className: "flex items-center justify-between gap-2"
-    }, /*#__PURE__*/React.createElement("h3", {
-      className: "text-white text-xl font-bold"
-    }, "Results (", totalResults, ")"), /*#__PURE__*/React.createElement("button", {
-      onClick: searchAgain,
-      className: "text-blue-300 text-sm underline"
-    }, "Search again")), /*#__PURE__*/React.createElement("p", {
-      className: "text-white/70 text-sm italic"
-    }, totalResults === 0 ? 'Nothing currently reported for that location.' : outbreaks.length + ' outbreak' + (outbreaks.length === 1 ? '' : 's') + ' . ' + recalls.length + ' recall' + (recalls.length === 1 ? '' : 's')), /*#__PURE__*/React.createElement("button", {
-      onClick: saveSearchToWatchlist,
-      disabled: savingTop,
-      className: "w-full py-3 rounded-xl bg-white text-gray-900 text-lg font-bold disabled:opacity-50"
-    }, savingTop ? '...' : '+ Add to Watchlist'), outbreaks.length > 0 ? /*#__PURE__*/React.createElement("div", {
-      className: "pt-2"
-    }, /*#__PURE__*/React.createElement("p", {
-      className: "text-emerald-300 text-base font-bold mb-2"
-    }, "Outbreaks"), outbreaks.map(function (o) {
-      const key = 'o:' + o.id;
-      const isBusy = savingResultKey === key;
-      return /*#__PURE__*/React.createElement(OutbreakCard, {
-        key: o.id,
-        outbreak: o
-      }, o.region || o.location ? /*#__PURE__*/React.createElement("button", {
-        onClick: function () {
-          saveOutbreakLocation(o);
-        },
-        disabled: isBusy || !!savingResultKey,
-        className: "mt-2 px-3 py-1 text-xs rounded bg-white/15 border border-white/30 text-white font-bold hover:bg-white/25 disabled:opacity-50"
-      }, isBusy ? '...' : '+ Add to Watchlist') : null);
-    })) : null, recalls.length > 0 ? /*#__PURE__*/React.createElement("div", {
-      className: "pt-2"
-    }, /*#__PURE__*/React.createElement("p", {
-      className: "text-red-300 text-base font-bold mb-2"
-    }, "Recalls"), recalls.map(function (r) {
-      return /*#__PURE__*/React.createElement(RecallCard, {
-        key: r.id,
-        recall: r
-      });
-    })) : null) : null, /*#__PURE__*/React.createElement("p", {
+    }, "Browse Latest Outbreaks"))), results ? function () {
+      const hideRecalls = isUSState(state);
+      const visibleRecalls = hideRecalls ? [] : recalls;
+      return /*#__PURE__*/React.createElement("div", {
+        className: "card-mw rounded-2xl p-5 mt-4 space-y-3"
+      }, /*#__PURE__*/React.createElement("div", {
+        className: "flex items-center justify-between gap-2"
+      }, /*#__PURE__*/React.createElement("h3", {
+        className: "text-white text-xl font-bold"
+      }, "Results for \"", state.trim() || region.trim() || "your area", "\""), /*#__PURE__*/React.createElement("button", {
+        onClick: searchAgain,
+        className: "text-blue-300 text-sm underline"
+      }, "Search again")), /*#__PURE__*/React.createElement("p", {
+        className: "text-white/70 text-xs italic"
+      }, "Checked ", results.checked_at ? new Date(results.checked_at).toLocaleString(undefined, {
+        dateStyle: 'medium',
+        timeStyle: 'short'
+      }) : 'just now'), /*#__PURE__*/React.createElement("div", {
+        className: "space-y-2 pb-2 border-b border-white/15"
+      }, function () {
+        const topDup = findDup(deriveProspectiveName());
+        if (topDup) {
+          return /*#__PURE__*/React.createElement("div", {
+            className: "w-full py-3 rounded-xl bg-white/15 border border-white/30 text-white text-lg font-bold text-center"
+          }, topDup.type === 'myplaces' ? '\u2605 Already in My Places' : '\u2713 Already in Watchlist');
+        }
+        return /*#__PURE__*/React.createElement("button", {
+          onClick: function () {
+            saveSearchToPlaces(false);
+          },
+          disabled: !!savingTop,
+          className: "w-full py-3 rounded-xl bg-white text-gray-900 text-lg font-bold disabled:opacity-50"
+        }, savingTop === 'wl' ? '...' : '+ Add to Watchlist');
+      }(), /*#__PURE__*/React.createElement("p", {
+        className: "text-white/55 text-xs italic text-center px-1"
+      }, "Watchlist starts the cron. Tap a Watchlist item to see latest info and choose to save to My Places.")), /*#__PURE__*/React.createElement("div", {
+        className: "pt-2"
+      }, /*#__PURE__*/React.createElement("p", {
+        className: "text-emerald-300 text-base font-bold mb-2"
+      }, "Outbreaks (", outbreaks.length, ")"), outbreaks.length === 0 ? /*#__PURE__*/React.createElement("div", {
+        className: "px-1 py-2"
+      }, /*#__PURE__*/React.createElement("p", {
+        className: "text-white/70 text-sm italic"
+      }, "No outbreaks reported here currently. The cron will alert you when one shows up."), results.checked_at ? /*#__PURE__*/React.createElement("p", {
+        className: "text-white/45 text-xs italic mt-1"
+      }, "Checked ", new Date(results.checked_at).toLocaleString(undefined, {
+        dateStyle: 'medium',
+        timeStyle: 'short'
+      })) : null) : outbreaks.map(function (o) {
+        const key = 'o:' + o.id;
+        const isBusy = savingResultKey === key;
+        const cardLoc = o.region || o.location;
+        const cardDup = findDup(cardLoc);
+        return /*#__PURE__*/React.createElement(OutbreakCard, {
+          key: o.id,
+          outbreak: o
+        }, cardLoc ? cardDup ? /*#__PURE__*/React.createElement("div", {
+          className: "mt-2 px-3 py-1 text-xs rounded bg-white/10 border border-white/25 text-white/85 font-bold text-center"
+        }, cardDup.type === 'myplaces' ? '\u2605 Already in My Places' : '\u2713 Already in Watchlist') : /*#__PURE__*/React.createElement("button", {
+          onClick: function () {
+            saveCardLocation(key, cardLoc, cardLoc);
+          },
+          disabled: isBusy || !!savingResultKey,
+          className: "mt-2 px-3 py-1 text-xs rounded bg-white/15 border border-white/30 text-white font-bold hover:bg-white/25 disabled:opacity-50"
+        }, isBusy ? '...' : '+ Add to Watchlist') : null);
+      })), hideRecalls ? /*#__PURE__*/React.createElement("div", {
+        className: "pt-2 border-t border-white/15"
+      }, /*#__PURE__*/React.createElement("p", {
+        className: "text-white/55 text-xs italic px-1"
+      }, "FDA recalls aren't shown for state searches -- they're nationwide and apply to every state. Search by country to see them.")) : /*#__PURE__*/React.createElement("div", {
+        className: "pt-2"
+      }, /*#__PURE__*/React.createElement("p", {
+        className: "text-red-300 text-base font-bold mb-2"
+      }, "Recalls (", visibleRecalls.length, ")"), visibleRecalls.length === 0 ? /*#__PURE__*/React.createElement("div", {
+        className: "px-1 py-2"
+      }, /*#__PURE__*/React.createElement("p", {
+        className: "text-white/70 text-sm italic"
+      }, "No recalls reported here currently."), results.checked_at ? /*#__PURE__*/React.createElement("p", {
+        className: "text-white/45 text-xs italic mt-1"
+      }, "Checked ", new Date(results.checked_at).toLocaleString(undefined, {
+        dateStyle: 'medium',
+        timeStyle: 'short'
+      })) : null) : visibleRecalls.map(function (rc) {
+        const key = 'r:' + rc.id;
+        const isBusy = savingResultKey === key;
+        // For nationwide recalls, save the searched state (or distribution).
+        const cardLoc = rc.distribution && rc.distribution.toLowerCase().indexOf('nationwide') !== 0 ? rc.distribution : state.trim() || null;
+        const cardDup = findDup(cardLoc);
+        return /*#__PURE__*/React.createElement(RecallCard, {
+          key: rc.id,
+          recall: rc
+        }, cardLoc ? cardDup ? /*#__PURE__*/React.createElement("div", {
+          className: "mt-2 px-3 py-1 text-xs rounded bg-white/10 border border-white/25 text-white/85 font-bold text-center"
+        }, cardDup.type === 'myplaces' ? '\u2605 Already in My Places' : '\u2713 Already in Watchlist') : /*#__PURE__*/React.createElement("button", {
+          onClick: function () {
+            saveCardLocation(key, cardLoc, cardLoc);
+          },
+          disabled: isBusy || !!savingResultKey,
+          className: "mt-2 px-3 py-1 text-xs rounded bg-white/15 border border-white/30 text-white font-bold hover:bg-white/25 disabled:opacity-50"
+        }, isBusy ? '...' : '+ Add to Watchlist') : null);
+      })));
+    }() : null, /*#__PURE__*/React.createElement("p", {
       className: "text-white/40 text-xs text-center px-6 italic mt-4"
-    }, "FDA . CDC . WHO. Based on publicly available sources.")));
+    }, "FDA \u00B7 CDC \u00B7 WHO \u00B7 EPA. Based on publicly available sources.")));
   }
 
-  // -- PLACE CARD (row in Watchlist / My Places list) ----------------------------
-  function PlaceCard(props) {
+  // -- WATCHLIST TILE -- active monitoring view (emerald theme) -------------------
+  // Used in WatchlistPage. Shows every place the cron monitors. Tap name to open
+  // drawer for an instant check. Trash icon removes the place entirely (which
+  // also removes it from My Places).
+  function WatchlistTile(props) {
     const p = props.place;
     const parts = [p.city, p.state, p.region].filter(Boolean);
-    const subtitle = parts.length ? parts.join(' . ') : p.name || '';
-    return /*#__PURE__*/React.createElement("button", {
+    const subtitle = parts.length ? parts.join(' . ') : '';
+    function handleRemove(e) {
+      e.stopPropagation();
+      if (!confirm('Remove "' + (p.name || 'this place') + '" from your Watchlist? (This also removes it from My Places.)')) return;
+      if (props.onRemove) props.onRemove(p.id);
+    }
+    return /*#__PURE__*/React.createElement("div", {
+      className: "p-4 rounded-lg border border-emerald-600/40 bg-emerald-900/20 mb-3"
+    }, /*#__PURE__*/React.createElement("div", {
+      className: "flex items-start justify-between gap-2"
+    }, /*#__PURE__*/React.createElement("button", {
       onClick: function () {
         props.onOpen(p);
       },
-      className: "w-full text-left card-recall rounded-lg p-4 mb-3 hover:bg-gray-700/40"
+      className: "flex-1 min-w-0 text-left"
+    }, /*#__PURE__*/React.createElement("h3", {
+      className: "font-bold text-white text-xl underline decoration-dotted truncate"
+    }, p.name || 'Place'), subtitle ? /*#__PURE__*/React.createElement("p", {
+      className: "text-white/75 text-base truncate mt-0.5"
+    }, subtitle) : null, /*#__PURE__*/React.createElement("p", {
+      className: "text-emerald-300 text-base font-bold mt-1"
+    }, "\u2713 Watching")), /*#__PURE__*/React.createElement("button", {
+      onClick: handleRemove,
+      className: "p-2 text-white/70 hover:text-white hover:bg-white/10 rounded-lg shrink-0"
+    }, /*#__PURE__*/React.createElement("svg", {
+      className: "w-5 h-5",
+      fill: "none",
+      stroke: "currentColor",
+      viewBox: "0 0 24 24"
+    }, /*#__PURE__*/React.createElement("path", {
+      strokeLinecap: "round",
+      strokeLinejoin: "round",
+      strokeWidth: 2,
+      d: "M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+    })))));
+  }
+
+  // -- MY PLACES TILE -- saved-for-reference view (amber theme) -------------------
+  // Used in MyPlacesPage. Sharper visual break vs WatchlistTile: amber border,
+  // prominent "SAVED" badge. The row stays on the Watchlist too -- the cron
+  // monitors both lists from the same row. Trash removes from BOTH lists.
+  function MyPlacesTile(props) {
+    const p = props.place;
+    const parts = [p.city, p.state, p.region].filter(Boolean);
+    const subtitle = parts.length ? parts.join(' . ') : '';
+    function handleRemove(e) {
+      e.stopPropagation();
+      if (!confirm('Remove "' + (p.name || 'this place') + '" entirely? (This removes it from BOTH My Places and Watchlist.)')) return;
+      if (props.onRemove) props.onRemove(p.id);
+    }
+    return /*#__PURE__*/React.createElement("div", {
+      className: "p-4 rounded-lg border-2 border-amber-500/70 bg-amber-900/30 mb-3"
     }, /*#__PURE__*/React.createElement("div", {
       className: "flex items-start justify-between gap-2"
-    }, /*#__PURE__*/React.createElement("div", {
-      className: "flex-1 min-w-0"
-    }, /*#__PURE__*/React.createElement("h3", {
-      className: "font-bold text-white text-xl truncate"
-    }, p.name || 'Place'), subtitle && subtitle !== p.name ? /*#__PURE__*/React.createElement("p", {
-      className: "text-white/70 text-base truncate"
-    }, subtitle) : null, /*#__PURE__*/React.createElement("div", {
-      className: "flex items-center gap-2 mt-1 flex-wrap"
-    }, p.in_my_places ? /*#__PURE__*/React.createElement("span", {
-      className: "text-white text-xs px-2 py-1 rounded font-bold bg-amber-700"
-    }, "\u2605 My Places") : null, /*#__PURE__*/React.createElement("span", {
-      className: "text-white/60 text-xs"
-    }, "Watching \xB7 ", Math.round(p.radius_mi || 50), " mi radius"))), /*#__PURE__*/React.createElement("span", {
-      className: "text-white text-sm"
-    }, "tap to open")));
+    }, /*#__PURE__*/React.createElement("button", {
+      onClick: function () {
+        props.onOpen(p);
+      },
+      className: "flex-1 min-w-0 text-left"
+    }, /*#__PURE__*/React.createElement("p", {
+      className: "text-amber-300 text-sm font-bold uppercase tracking-widest mb-1"
+    }, "* Saved"), /*#__PURE__*/React.createElement("h3", {
+      className: "font-bold text-white text-xl underline decoration-dotted truncate"
+    }, p.name || 'Place'), subtitle ? /*#__PURE__*/React.createElement("p", {
+      className: "text-white/75 text-base truncate mt-0.5"
+    }, subtitle) : null), /*#__PURE__*/React.createElement("button", {
+      onClick: handleRemove,
+      className: "p-2 text-white/70 hover:text-white hover:bg-white/10 rounded-lg shrink-0"
+    }, /*#__PURE__*/React.createElement("svg", {
+      className: "w-5 h-5",
+      fill: "none",
+      stroke: "currentColor",
+      viewBox: "0 0 24 24"
+    }, /*#__PURE__*/React.createElement("path", {
+      strokeLinecap: "round",
+      strokeLinejoin: "round",
+      strokeWidth: 2,
+      d: "M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+    })))));
   }
 
   // -- PLACE DRAWER (v0.1.7: outbreaks + recalls matched to this location) -------
@@ -944,6 +1142,12 @@ function _arrayWithHoles(r) { if (Array.isArray(r)) return r; }
       _useState52 = _slicedToArray(_useState51, 2),
       actionBusy = _useState52[0],
       setActionBusy = _useState52[1];
+    // Local mirror of in_my_places so we can flip to "Saved" badge instantly
+    // without closing the drawer. Initialized from the place row passed in.
+    const _useState53 = useState(!!place.in_my_places),
+      _useState54 = _slicedToArray(_useState53, 2),
+      savedFlag = _useState54[0],
+      setSavedFlag = _useState54[1];
     function load() {
       setBusy(true);
       setErr('');
@@ -971,20 +1175,24 @@ function _arrayWithHoles(r) { if (Array.isArray(r)) return r; }
     useEffect(function () {
       load();
     }, []);
-    function toggleMyPlaces() {
-      if (actionBusy) return;
+
+    // Save-only. Per the canonical model (EW v0.1.6+), there is no un-save from
+    // here -- to remove from My Places, the user deletes the place entirely from
+    // the My Places tab (which removes from Watchlist too, since they're the
+    // same row). Drawer stays open and the button is replaced by a "Saved" badge.
+    function saveToMyPlaces() {
+      if (actionBusy || savedFlag) return;
       setActionBusy(true);
-      const newVal = !place.in_my_places;
       fetch(API_BASE + '/places/' + place.id, {
         method: 'PATCH',
         headers: jsonHeaders(),
         body: JSON.stringify({
-          in_my_places: newVal
+          in_my_places: true
         })
       }).then(function () {
         setActionBusy(false);
+        setSavedFlag(true);
         if (props.onChanged) props.onChanged();
-        props.onClose();
       }).catch(function () {
         setActionBusy(false);
       });
@@ -1023,42 +1231,62 @@ function _arrayWithHoles(r) { if (Array.isArray(r)) return r; }
       className: "text-white text-2xl font-bold"
     }, place.name), subtitle ? /*#__PURE__*/React.createElement("p", {
       className: "text-white/70 text-base"
-    }, subtitle) : null, place.in_my_places ? /*#__PURE__*/React.createElement("span", {
+    }, subtitle) : null, savedFlag ? /*#__PURE__*/React.createElement("span", {
       className: "inline-block text-white text-xs px-2 py-1 rounded font-bold mt-2 bg-amber-700"
-    }, "\u2605 Saved to My Places") : null), /*#__PURE__*/React.createElement("button", {
+    }, "* Saved to My Places") : null), /*#__PURE__*/React.createElement("button", {
       onClick: props.onClose,
       className: "text-white hover:text-gray-300 text-3xl leading-none px-2"
     }, "\xD7")), busy ? /*#__PURE__*/React.createElement("p", {
       className: "text-white text-base py-4 text-center"
-    }, "Checking for outbreaks and recalls at this location\u2026") : err ? /*#__PURE__*/React.createElement("p", {
+    }, "Checking for outbreaks at this location...") : err ? /*#__PURE__*/React.createElement("p", {
       className: "text-red-300 text-base py-3"
-    }, err) : /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("p", {
-      className: "text-white/60 text-sm mb-3 italic"
-    }, outbreaks.length === 0 && recalls.length === 0 ? 'Nothing active here right now. We\'re watching.' : outbreaks.length + ' outbreak' + (outbreaks.length === 1 ? '' : 's') + ' . ' + recalls.length + ' recall' + (recalls.length === 1 ? '' : 's')), outbreaks.length > 0 ? /*#__PURE__*/React.createElement("div", {
+    }, err) : /*#__PURE__*/React.createElement("div", null, outbreaks.length === 0 ? /*#__PURE__*/React.createElement("div", {
+      className: "py-4 text-center"
+    }, /*#__PURE__*/React.createElement("p", {
+      className: "text-3xl mb-2"
+    }, '\u2713'), /*#__PURE__*/React.createElement("p", {
+      className: "text-white text-xl font-bold mb-1"
+    }, "No active outbreaks"), /*#__PURE__*/React.createElement("p", {
+      className: "text-white/70 text-sm mb-2"
+    }, "Watching for new information."), data && data.checked_at ? /*#__PURE__*/React.createElement("p", {
+      className: "text-white/55 text-xs italic"
+    }, "Checked ", new Date(data.checked_at).toLocaleString()) : null) : /*#__PURE__*/React.createElement("div", {
       className: "mb-4"
     }, /*#__PURE__*/React.createElement("p", {
       className: "text-emerald-300 text-lg font-bold mb-2"
-    }, "Outbreaks"), outbreaks.map(function (o) {
+    }, "Outbreaks (", outbreaks.length, ")"), outbreaks.map(function (o) {
       return /*#__PURE__*/React.createElement(OutbreakCard, {
         key: o.id,
         outbreak: o
       });
-    })) : null, recalls.length > 0 ? /*#__PURE__*/React.createElement("div", {
-      className: "mb-4"
-    }, /*#__PURE__*/React.createElement("p", {
-      className: "text-red-300 text-lg font-bold mb-2"
-    }, "Recalls"), recalls.map(function (r) {
-      return /*#__PURE__*/React.createElement(RecallCard, {
-        key: r.id,
-        recall: r
-      });
-    })) : null), /*#__PURE__*/React.createElement("div", {
+    }), data && data.checked_at ? /*#__PURE__*/React.createElement("p", {
+      className: "text-white/55 text-xs italic mt-2 text-center"
+    }, "Checked ", new Date(data.checked_at).toLocaleString()) : null)), /*#__PURE__*/React.createElement("div", {
       className: "space-y-2 mt-4"
-    }, /*#__PURE__*/React.createElement("button", {
-      onClick: toggleMyPlaces,
-      disabled: actionBusy,
-      className: "w-full py-4 text-xl rounded-xl bg-amber-700 hover:bg-amber-600 text-white font-bold border border-amber-500 disabled:opacity-50"
-    }, place.in_my_places ? 'Remove from My Places' : '* Save to My Places'), /*#__PURE__*/React.createElement("div", {
+    }, savedFlag ? /*#__PURE__*/React.createElement("div", {
+      className: "w-full py-4 text-lg rounded-xl bg-amber-900/40 border border-amber-600/50 text-amber-200 font-bold text-center"
+    }, "* Saved to My Places") : function () {
+      // Dup-check: another saved place with the same name (case-insensitive)?
+      var otherPlaces = props.places || [];
+      var dup = false;
+      for (var i = 0; i < otherPlaces.length; i++) {
+        var op = otherPlaces[i];
+        if (op.in_my_places && op.id !== place.id && op.name && place.name && op.name.toLowerCase().trim() === place.name.toLowerCase().trim()) {
+          dup = true;
+          break;
+        }
+      }
+      if (dup) {
+        return /*#__PURE__*/React.createElement("div", {
+          className: "w-full py-3 text-base rounded-xl bg-white/10 border border-white/20 text-white/80 text-center"
+        }, "Already in My Places (same name)");
+      }
+      return /*#__PURE__*/React.createElement("button", {
+        onClick: saveToMyPlaces,
+        disabled: actionBusy,
+        className: "w-full py-4 text-xl rounded-xl bg-amber-700 hover:bg-amber-600 text-white font-bold border border-amber-500 disabled:opacity-50"
+      }, actionBusy ? '...' : '* Save to My Places');
+    }(), /*#__PURE__*/React.createElement("div", {
       className: "flex gap-2"
     }, /*#__PURE__*/React.createElement("button", {
       onClick: function () {
@@ -1067,19 +1295,19 @@ function _arrayWithHoles(r) { if (Array.isArray(r)) return r; }
       },
       disabled: actionBusy,
       className: "flex-1 py-3 text-base rounded-xl bg-white/15 text-white font-bold border border-white/30 hover:bg-white/20 disabled:opacity-50"
-    }, "\u2190 Back to Search"), /*#__PURE__*/React.createElement("button", {
+    }, '\u2190', " Back to Search"), /*#__PURE__*/React.createElement("button", {
       onClick: remove,
       disabled: actionBusy,
       className: "flex-1 py-3 text-base rounded-xl bg-red-900/60 text-white font-bold border border-red-600 hover:bg-red-800/70 disabled:opacity-50"
-    }, "\uD83D\uDDD1 Remove")))));
+    }, "Remove")))));
   }
 
   // -- WATCHLIST PAGE (renders PLACES, not recall items) -------------------------
   function WatchlistPage(props) {
-    // Places that haven't been saved to My Places yet -- saving moves them out of here.
-    const places = (props.places || []).filter(function (p) {
-      return !p.in_my_places;
-    });
+    // Watchlist is the canonical list of cron-monitored places. My Places is a
+    // subset view (in_my_places=true). Saving to My Places does NOT remove from
+    // Watchlist -- it just flags the row for the subset view. Place ALWAYS stays here.
+    const places = props.places || [];
     return /*#__PURE__*/React.createElement("div", {
       className: "px-3 pb-32",
       style: {
@@ -1095,11 +1323,12 @@ function _arrayWithHoles(r) { if (Array.isArray(r)) return r; }
       }
     }, places.length === 0 ? /*#__PURE__*/React.createElement("p", {
       className: "text-white text-xl text-center py-6"
-    }, "Your Watchlist is empty. Use Search to add a region, state, or city.") : places.map(function (p) {
-      return /*#__PURE__*/React.createElement(PlaceCard, {
+    }, "Your Watchlist is empty. Use Search to add a place \u2014 your neighborhood, your state, anywhere you care about.") : places.map(function (p) {
+      return /*#__PURE__*/React.createElement(WatchlistTile, {
         key: p.id,
         place: p,
-        onOpen: props.onOpen
+        onOpen: props.onOpen,
+        onRemove: props.onRemove
       });
     })));
   }
@@ -1116,7 +1345,7 @@ function _arrayWithHoles(r) { if (Array.isArray(r)) return r; }
       }
     }, /*#__PURE__*/React.createElement(BackgroundHeader, {
       title: "My Places (" + saved.length + ")",
-      subtitle: "Saved places \u2014 they stay on the Watchlist too"
+      subtitle: "Saved places -- they stay on the Watchlist too"
     }), /*#__PURE__*/React.createElement("div", {
       className: "card-mw rounded-2xl p-5 max-w-2xl mx-auto",
       style: {
@@ -1124,25 +1353,26 @@ function _arrayWithHoles(r) { if (Array.isArray(r)) return r; }
       }
     }, saved.length === 0 ? /*#__PURE__*/React.createElement("p", {
       className: "text-white text-xl text-center py-6"
-    }, "No saved places yet. Open any place from your Watchlist and tap \u2605 Save to My Places.") : saved.map(function (p) {
-      return /*#__PURE__*/React.createElement(PlaceCard, {
+    }, "No saved places yet. Open any place from your Watchlist and tap * Save to My Places.") : saved.map(function (p) {
+      return /*#__PURE__*/React.createElement(MyPlacesTile, {
         key: p.id,
         place: p,
-        onOpen: props.onOpen
+        onOpen: props.onOpen,
+        onRemove: props.onRemove
       });
     })));
   }
 
   // -- ALERTS PAGE ---------------------------------------------------------------
   function AlertsPage(props) {
-    const _useState53 = useState([]),
-      _useState54 = _slicedToArray(_useState53, 2),
-      items = _useState54[0],
-      setItems = _useState54[1];
-    const _useState55 = useState(true),
+    const _useState55 = useState([]),
       _useState56 = _slicedToArray(_useState55, 2),
-      busy = _useState56[0],
-      setBusy = _useState56[1];
+      items = _useState56[0],
+      setItems = _useState56[1];
+    const _useState57 = useState(true),
+      _useState58 = _slicedToArray(_useState57, 2),
+      busy = _useState58[0],
+      setBusy = _useState58[1];
     function load() {
       setBusy(true);
       fetch(API_BASE + '/notifications', {
@@ -1183,7 +1413,7 @@ function _arrayWithHoles(r) { if (Array.isArray(r)) return r; }
       className: "text-white text-base text-center"
     }, "Loading\u2026") : items.length === 0 ? /*#__PURE__*/React.createElement("p", {
       className: "text-white text-xl text-center py-6"
-    }, "No alerts. We're watching \u2014 when something happens at a place on your Watchlist, you'll see it here.") : items.map(function (n) {
+    }, "No alerts. We're watching the places on your Watchlist \u2014 when a recall, outbreak, or enforcement action happens there, you'll see it here.") : items.map(function (n) {
       return /*#__PURE__*/React.createElement("div", {
         key: n.id,
         className: "card-recall rounded-lg p-4 mb-3"
@@ -1228,11 +1458,11 @@ function _arrayWithHoles(r) { if (Array.isArray(r)) return r; }
       }
     }, /*#__PURE__*/React.createElement("p", {
       className: "text-white text-base"
-    }, "OurHealth.Watch monitors official public-health feeds \u2014 FDA drug and device recalls, CDC outbreak reports, WHO disease outbreak news \u2014 for places you care about. Pick a region, state, or city. Add it to your Watchlist. We'll alert you when something happens there."), /*#__PURE__*/React.createElement("p", {
+    }, "OurHealth.Watch keeps an eye on the things that could affect your family's or community's health: drug recalls, medical device recalls, disease outbreaks, and environmental enforcement actions. Pick the places that matter \u2014 your neighborhood, your state, where your kids live, where you're traveling \u2014 and we'll watch them for you."), /*#__PURE__*/React.createElement("p", {
       className: "text-white/80 text-sm mt-3"
-    }, "Companion to Cruise Ship Watch and EarthWatch. Watch a place. Save the ones you care about. That's it."), /*#__PURE__*/React.createElement("p", {
+    }, "Companion to Cruise Ship Watch, EarthWatch, and Memorial Watch. Watch what matters. Save the places you care about."), /*#__PURE__*/React.createElement("p", {
       className: "text-white/60 text-xs mt-4 italic"
-    }, "Based on publicly available sources. Not medical advice."), /*#__PURE__*/React.createElement("hr", {
+    }, "Based on publicly available sources from FDA, CDC, WHO, and EPA. Not medical advice."), /*#__PURE__*/React.createElement("hr", {
       className: "border-white/20 my-5"
     }), /*#__PURE__*/React.createElement("p", {
       className: "text-white/80 text-sm"
@@ -1365,30 +1595,30 @@ function _arrayWithHoles(r) { if (Array.isArray(r)) return r; }
 
   // -- APP ROOT ------------------------------------------------------------------
   function App() {
-    const _useState57 = useState(null),
-      _useState58 = _slicedToArray(_useState57, 2),
-      user = _useState58[0],
-      setUser = _useState58[1];
-    const _useState59 = useState('...'),
+    const _useState59 = useState(null),
       _useState60 = _slicedToArray(_useState59, 2),
-      apiVersion = _useState60[0],
-      setApiVersion = _useState60[1];
-    const _useState61 = useState('search'),
+      user = _useState60[0],
+      setUser = _useState60[1];
+    const _useState61 = useState('...'),
       _useState62 = _slicedToArray(_useState61, 2),
-      page = _useState62[0],
-      setPage = _useState62[1];
-    const _useState63 = useState([]),
+      apiVersion = _useState62[0],
+      setApiVersion = _useState62[1];
+    const _useState63 = useState('search'),
       _useState64 = _slicedToArray(_useState63, 2),
-      places = _useState64[0],
-      setPlaces = _useState64[1];
-    const _useState65 = useState(null),
+      page = _useState64[0],
+      setPage = _useState64[1];
+    const _useState65 = useState([]),
       _useState66 = _slicedToArray(_useState65, 2),
-      drawerPlace = _useState66[0],
-      setDrawerPlace = _useState66[1];
-    const _useState67 = useState(0),
+      places = _useState66[0],
+      setPlaces = _useState66[1];
+    const _useState67 = useState(null),
       _useState68 = _slicedToArray(_useState67, 2),
-      alertCount = _useState68[0],
-      setAlertCount = _useState68[1];
+      drawerPlace = _useState68[0],
+      setDrawerPlace = _useState68[1];
+    const _useState69 = useState(0),
+      _useState70 = _slicedToArray(_useState69, 2),
+      alertCount = _useState70[0],
+      setAlertCount = _useState70[1];
 
     // Cold-start: fetch health, hydrate auth.
     useEffect(function () {
@@ -1459,6 +1689,19 @@ function _arrayWithHoles(r) { if (Array.isArray(r)) return r; }
       loadPlaces();
       loadAlertCount();
     }
+
+    // Remove a place entirely. Hits DELETE /places/{id} -- backend cascades to
+    // notifications for that place. UI then reloads so the row disappears from
+    // both Watchlist and My Places (since it was the same row in both views).
+    function removePlace(id) {
+      if (!getToken()) return;
+      fetch(API_BASE + '/places/' + id, {
+        method: 'DELETE',
+        headers: authHeaders()
+      }).then(function () {
+        handleChanged();
+      }).catch(function () {});
+    }
     if (!user) {
       return /*#__PURE__*/React.createElement(LoginScreen, {
         onAuth: handleAuth
@@ -1467,13 +1710,17 @@ function _arrayWithHoles(r) { if (Array.isArray(r)) return r; }
     return /*#__PURE__*/React.createElement("div", {
       className: "app-bg min-h-screen"
     }, /*#__PURE__*/React.createElement("main", null, page === 'search' && /*#__PURE__*/React.createElement(SearchPage, {
-      onPlaceAdded: handleChanged
+      places: places,
+      onPlaceAdded: handleChanged,
+      onNavigate: setPage
     }), page === 'watchlist' && /*#__PURE__*/React.createElement(WatchlistPage, {
       places: places,
-      onOpen: setDrawerPlace
+      onOpen: setDrawerPlace,
+      onRemove: removePlace
     }), page === 'myplaces' && /*#__PURE__*/React.createElement(MyPlacesPage, {
       places: places,
-      onOpen: setDrawerPlace
+      onOpen: setDrawerPlace,
+      onRemove: removePlace
     }), page === 'info' && /*#__PURE__*/React.createElement(InfoPage, {
       email: user.email,
       apiVersion: apiVersion,
@@ -1484,6 +1731,7 @@ function _arrayWithHoles(r) { if (Array.isArray(r)) return r; }
       alertCount: alertCount
     }), drawerPlace ? /*#__PURE__*/React.createElement(PlaceDrawer, {
       place: drawerPlace,
+      places: places,
       onClose: function () {
         setDrawerPlace(null);
       },
