@@ -33,7 +33,7 @@ function _arrayWithHoles(r) { if (Array.isArray(r)) return r; }
 
   // -- CONFIG --------------------------------------------------------------------
   const API_BASE = 'https://ourhealthwatch-backend.onrender.com';
-  const APP_VERSION = '0.1.34';
+  const APP_VERSION = '0.1.35';
   const TOKEN_KEY = 'oh_token';
   const USER_KEY = 'oh_user';
 
@@ -1432,6 +1432,13 @@ function _arrayWithHoles(r) { if (Array.isArray(r)) return r; }
 
   // -- INFO / ABOUT PAGE ---------------------------------------------------------
   function InfoPage(props) {
+    const _dzS = useState(false);
+    const showDangerZone = _dzS[0];
+    const setShowDangerZone = _dzS[1];
+    const _dcS = useState(false);
+    const showDeleteConfirm = _dcS[0];
+    const setShowDeleteConfirm = _dcS[1];
+
     function logout() {
       if (confirm('Log out?')) {
         try {
@@ -1441,37 +1448,136 @@ function _arrayWithHoles(r) { if (Array.isArray(r)) return r; }
         props.onLogout();
       }
     }
+
+    function doDeleteAccount() {
+      fetch(API_BASE + '/account', { method: 'DELETE', headers: authHeaders() })
+        .then(function() {
+          try { localStorage.removeItem(TOKEN_KEY); localStorage.removeItem(USER_KEY); } catch(e) {}
+          props.onLogout();
+        })
+        .catch(function() {
+          try { localStorage.removeItem(TOKEN_KEY); localStorage.removeItem(USER_KEY); } catch(e) {}
+          props.onLogout();
+        });
+    }
+
     return /*#__PURE__*/React.createElement("div", {
       className: "px-3 pb-32",
-      style: {
-        paddingTop: '12vh'
-      }
-    }, /*#__PURE__*/React.createElement(BackgroundHeader, {
-      title: "Info",
-      subtitle: "About OurHealth.Watch"
-    }), /*#__PURE__*/React.createElement("div", {
-      className: "card-mw rounded-2xl p-5 max-w-2xl mx-auto",
-      style: {
-        marginTop: '2vh'
-      }
-    }, /*#__PURE__*/React.createElement("p", {
-      className: "text-white text-base"
-    }, "OurHealth.Watch keeps an eye on the things that could affect your family's or community's health: drug recalls, medical device recalls, disease outbreaks, and environmental enforcement actions. Pick the places that matter \u2014 your neighborhood, your state, where your kids live, where you're traveling \u2014 and we'll watch them for you."), /*#__PURE__*/React.createElement("p", {
-      className: "text-white/80 text-sm mt-3"
-    }, "Companion to Cruise Ship Watch, EarthWatch, and Memorial Watch. Watch what matters. Save the places you care about."), /*#__PURE__*/React.createElement("p", {
-      className: "text-white/60 text-xs mt-4 italic"
-    }, "Based on publicly available sources from FDA, CDC, WHO, and EPA. Not medical advice."), /*#__PURE__*/React.createElement("hr", {
-      className: "border-white/20 my-5"
-    }), /*#__PURE__*/React.createElement("p", {
-      className: "text-white/80 text-sm"
-    }, /*#__PURE__*/React.createElement("span", {
-      className: "text-white/60"
-    }, "Account:"), " ", props.email), /*#__PURE__*/React.createElement("p", {
-      className: "text-white/60 text-xs mt-3"
-    }, "app v", APP_VERSION, " \xB7 api v", props.apiVersion), /*#__PURE__*/React.createElement("button", {
-      onClick: logout,
-      className: "w-full mt-5 px-4 py-2 rounded bg-red-800 hover:bg-red-700 text-white text-base font-semibold"
-    }, "Log out")));
+      style: { paddingTop: '4vh' }
+    },
+      /*#__PURE__*/React.createElement("div", { className: "card-mw rounded-2xl p-5 max-w-2xl mx-auto mb-3" },
+        /*#__PURE__*/React.createElement("div", { className: "text-center mb-3 pb-2 border-b border-white/15" },
+          /*#__PURE__*/React.createElement("h2", { className: "text-white text-3xl font-black" }, "About"),
+          /*#__PURE__*/React.createElement("h2", { className: "text-white text-3xl font-black" }, "OurHealth.Watch")
+        ),
+        /*#__PURE__*/React.createElement("p", { className: "text-white/70 italic text-base text-center mb-3" }, "v", APP_VERSION),
+        /*#__PURE__*/React.createElement("div", { className: "flex items-center gap-4 mb-4" },
+          /*#__PURE__*/React.createElement("img", {
+            src: "https://raw.githubusercontent.com/bspencer413/memorial-watch/main/Bill.jpeg",
+            alt: "Bill Spencer",
+            className: "w-14 h-14 rounded-full object-cover border-2 border-white/30 shadow-lg shrink-0"
+          }),
+          /*#__PURE__*/React.createElement("div", null,
+            /*#__PURE__*/React.createElement("p", { className: "font-bold text-white text-lg" }, "Bill Spencer"),
+            /*#__PURE__*/React.createElement("p", { className: "text-white/60 italic text-base" }, "Founder"),
+            /*#__PURE__*/React.createElement("a", { href: "mailto:hello@ourhealth.watch", className: "text-blue-300 text-base mt-1 block" }, "hello@ourhealth.watch")
+          )
+        ),
+        /*#__PURE__*/React.createElement("p", { className: "text-white text-xl font-bold italic mb-3" }, "Whole person. Whole community."),
+        /*#__PURE__*/React.createElement("div", { className: "space-y-3 text-white/85 text-base leading-relaxed" },
+          /*#__PURE__*/React.createElement("p", null, "Things that could affect your family's or community's health."),
+          /*#__PURE__*/React.createElement("p", null, "Drug recalls, medical device recalls, disease outbreaks, environmental enforcement actions \u2014 this information is scattered across government feeds, and the things that matter most are buried until it's too late."),
+          /*#__PURE__*/React.createElement("p", null, "So we built OurHealth.Watch to bring it together: a simple way to follow the places you care about and get notified when something near them affects your health."),
+          /*#__PURE__*/React.createElement("p", null, "OurHealth.Watch monitors public information from government sources. No ads. No subscriptions. Just useful answers.")
+        )
+      ),
+      /*#__PURE__*/React.createElement("div", { className: "card-mw rounded-2xl p-5 max-w-2xl mx-auto mb-3" },
+        /*#__PURE__*/React.createElement("h3", { className: "text-white text-xl font-bold mb-4 text-center" }, "How it works"),
+        /*#__PURE__*/React.createElement("div", { className: "space-y-4" },
+          /*#__PURE__*/React.createElement("div", { className: "flex gap-3 items-start" },
+            /*#__PURE__*/React.createElement("span", { className: "text-blue-300 text-xl font-black w-6 shrink-0" }, "1."),
+            /*#__PURE__*/React.createElement("p", { className: "text-white/90 text-base" }, "Add a place \u2014 your neighborhood, your state, where your kids live, anywhere you care about.")
+          ),
+          /*#__PURE__*/React.createElement("div", { className: "flex gap-3 items-start" },
+            /*#__PURE__*/React.createElement("span", { className: "text-blue-300 text-xl font-black w-6 shrink-0" }, "2."),
+            /*#__PURE__*/React.createElement("p", { className: "text-white/90 text-base" }, "OurHealth.Watch checks public feeds and matches new recalls, outbreaks, and enforcement to your watched places.")
+          ),
+          /*#__PURE__*/React.createElement("div", { className: "flex gap-3 items-start" },
+            /*#__PURE__*/React.createElement("span", { className: "text-blue-300 text-xl font-black w-6 shrink-0" }, "3."),
+            /*#__PURE__*/React.createElement("p", { className: "text-white/90 text-base" }, "When something happens at one of your places, you'll see an alert \u2014 type, severity, and source.")
+          ),
+          /*#__PURE__*/React.createElement("div", { className: "flex gap-3 items-start" },
+            /*#__PURE__*/React.createElement("span", { className: "text-blue-300 text-xl font-black w-6 shrink-0" }, "4."),
+            /*#__PURE__*/React.createElement("p", { className: "text-white/90 text-base" }, "OurHealth.Watch is free. Premium features may include faster check intervals and custom filters.")
+          )
+        )
+      ),
+      /*#__PURE__*/React.createElement("div", { className: "card-mw rounded-2xl p-5 max-w-2xl mx-auto mb-3" },
+        /*#__PURE__*/React.createElement("h3", { className: "text-white text-xl font-bold mb-3" }, "Data Sources"),
+        /*#__PURE__*/React.createElement("div", { className: "space-y-2 text-white/85 text-base leading-relaxed" },
+          /*#__PURE__*/React.createElement("p", null, /*#__PURE__*/React.createElement("strong", { className: "text-white" }, "FDA"), " \u2014 Drug and medical device recalls."),
+          /*#__PURE__*/React.createElement("p", null, /*#__PURE__*/React.createElement("strong", { className: "text-white" }, "CDC"), " \u2014 U.S. disease outbreak reports and health syndication."),
+          /*#__PURE__*/React.createElement("p", null, /*#__PURE__*/React.createElement("strong", { className: "text-white" }, "WHO"), " \u2014 International disease outbreak news."),
+          /*#__PURE__*/React.createElement("p", null, /*#__PURE__*/React.createElement("strong", { className: "text-white" }, "EPA"), " \u2014 Environmental enforcement actions (ICIS).")
+        )
+      ),
+      /*#__PURE__*/React.createElement("div", { className: "card-mw rounded-2xl p-5 max-w-2xl mx-auto mb-3" },
+        /*#__PURE__*/React.createElement("h3", { className: "text-white text-xl font-bold mb-1" }, "Privacy Policy"),
+        /*#__PURE__*/React.createElement("p", { className: "text-white/60 text-sm mb-3" }, "Last updated: May 2026"),
+        /*#__PURE__*/React.createElement("div", { className: "space-y-3 text-white/85 text-base leading-relaxed" },
+          /*#__PURE__*/React.createElement("p", null, /*#__PURE__*/React.createElement("strong", { className: "text-white" }, "We collect:"), " your email address, your watched places, and anonymous usage data."),
+          /*#__PURE__*/React.createElement("p", null, /*#__PURE__*/React.createElement("strong", { className: "text-white" }, "How we use it:"), " We do not sell your personal information. Ever."),
+          /*#__PURE__*/React.createElement("p", null, /*#__PURE__*/React.createElement("strong", { className: "text-white" }, "Data sources:"), " Health and environmental information is from publicly available sources at FDA, CDC, WHO, and EPA."),
+          /*#__PURE__*/React.createElement("p", null, /*#__PURE__*/React.createElement("strong", { className: "text-white" }, "Your rights:"), " You may delete your account and all associated data at any time."),
+          /*#__PURE__*/React.createElement("p", null, /*#__PURE__*/React.createElement("strong", { className: "text-white" }, "Disclaimer:"), " OurHealth.Watch is not medical advice. Always consult your doctor and follow guidance from local authorities. This is not a substitute for official health alerts."),
+          /*#__PURE__*/React.createElement("a", { href: "mailto:hello@ourhealth.watch", className: "text-blue-300 text-base block" }, "hello@ourhealth.watch")
+        )
+      ),
+      /*#__PURE__*/React.createElement("div", { className: "card-mw rounded-2xl p-5 max-w-2xl mx-auto mb-3" },
+        /*#__PURE__*/React.createElement("h3", { className: "text-white text-xl font-bold mb-3 text-center" }, "Try our other Watchlist apps"),
+        /*#__PURE__*/React.createElement("a", {
+          href: "https://3brains.app",
+          target: "_blank",
+          rel: "noopener noreferrer",
+          className: "block w-full py-4 bg-blue-700 hover:bg-blue-800 text-white text-center rounded-xl text-lg font-semibold"
+        }, "Visit Our Site")
+      ),
+      /*#__PURE__*/React.createElement("div", { className: "px-1 space-y-3 max-w-2xl mx-auto pb-2" },
+        /*#__PURE__*/React.createElement("div", { className: "p-3 bg-black/30 rounded-xl" },
+          /*#__PURE__*/React.createElement("p", { className: "font-medium text-white text-base text-center" }, props.email)
+        ),
+        /*#__PURE__*/React.createElement("button", {
+          onClick: logout,
+          className: "w-full py-4 bg-red-800 hover:bg-red-700 text-white rounded-xl text-base font-bold"
+        }, "Sign Out"),
+        /*#__PURE__*/React.createElement("button", {
+          onClick: function() { setShowDangerZone(!showDangerZone); },
+          className: "w-full py-3 text-white/60 text-base text-center"
+        }, showDangerZone ? 'Hide' : 'Account Removal'),
+        showDangerZone && /*#__PURE__*/React.createElement("div", { className: "space-y-3" },
+          !showDeleteConfirm
+            ? /*#__PURE__*/React.createElement("button", {
+                onClick: function() { setShowDeleteConfirm(true); },
+                className: "w-full py-4 bg-red-900/70 border border-red-700 text-red-300 rounded-xl text-base"
+              }, "Delete Account")
+            : /*#__PURE__*/React.createElement("div", { className: "bg-red-900/30 border border-red-700 rounded-2xl p-5 space-y-3" },
+                /*#__PURE__*/React.createElement("h3", { className: "font-bold text-red-300 text-base" }, "Are you sure?"),
+                /*#__PURE__*/React.createElement("p", { className: "text-white/80 text-base" }, "This will permanently delete your account and all data."),
+                /*#__PURE__*/React.createElement("button", {
+                  onClick: doDeleteAccount,
+                  className: "w-full py-4 bg-red-700 text-white rounded-xl font-bold text-base"
+                }, "Yes, Permanently Delete My Account"),
+                /*#__PURE__*/React.createElement("button", {
+                  onClick: function() { setShowDeleteConfirm(false); setShowDangerZone(false); },
+                  className: "w-full py-4 bg-gray-700 border border-gray-600 text-white rounded-xl font-medium text-base"
+                }, "Cancel")
+              )
+        )
+      ),
+      /*#__PURE__*/React.createElement("p", {
+        className: "text-white/30 text-center text-sm pb-4"
+      }, "app v", APP_VERSION, " \xB7 api v", props.apiVersion)
+    );
   }
 
   // -- BOTTOM NAV ----------------------------------------------------------------
